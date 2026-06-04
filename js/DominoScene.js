@@ -14,6 +14,7 @@ export class DominoScene {
     this.host = canvasHost;
     this.clock = new THREE.Clock();
     this.dominoes = [];
+    this._dominoLayoutListeners = new Set();
     this._baseCameraPos = new THREE.Vector3();
     this._shakeOffset = new THREE.Vector3();
 
@@ -72,11 +73,10 @@ export class DominoScene {
    */
   _applyCameraLayout(width, height) {
     const aspect = width / height;
-    const isMobile = width < 640;
-    const isTablet = width >= 640 && width < 1024;
+    const tier = this._getViewportTier(width);
     const cam = CONFIG.camera;
-    const layout = isMobile ? cam.mobile : isTablet ? cam.tablet : cam.desktop;
-    const fov = isMobile ? cam.fov.mobile : isTablet ? cam.fov.tablet : cam.fov.desktop;
+    const layout = cam[tier];
+    const fov = cam.fov[tier];
 
     this.camera.aspect = aspect;
     this.camera.fov = fov;
@@ -148,13 +148,33 @@ export class DominoScene {
     return base * (0.9 + scale * 0.1);
   }
 
-  _initDominoes() {
-    const { spacing } = CONFIG.domino;
-    const count = CONFIG.dominoCount;
+  _getViewportTier(width = window.innerWidth) {
+    if (width < 640) return 'mobile';
+    if (width < 1024) return 'tablet';
+    return 'desktop';
+  }
+
+  _getDominoCount(width = window.innerWidth) {
+    const counts = CONFIG.dominoCount;
+    return this._getViewportTier(width) === 'mobile' ? counts.mobile : counts.desktop;
+  }
+
+  _getDominoSpacing(width = window.innerWidth) {
+    return this._getViewportTier(width) === 'mobile'
+      ? CONFIG.domino.mobileSpacing
+      : CONFIG.domino.spacing;
+  }
+
+  _dominoLayoutKey(width = window.innerWidth) {
+    return `${this._getDominoCount(width)}:${this._getDominoSpacing(width)}`;
+  }
+
+  _initDominoes(count = this._getDominoCount(), spacing = this._getDominoSpacing()) {
     const totalDepth = (count - 1) * spacing;
     /** Index 0 starts at local +Z; view rotation maps the chain left-to-right. */
     const startZ = totalDepth / 2;
-    const rowY = this._dominoRowY(1);
+    const scale = this.getDominoScale();
+    const rowY = this._dominoRowY(scale);
 
     for (let i = 0; i < count; i++) {
       const palette = DOMINO_COLORS[i % DOMINO_COLORS.length];
@@ -165,6 +185,29 @@ export class DominoScene {
       piece.addTo(this.compositionPivot);
       this.dominoes.push(piece);
     }
+
+    this._currentDominoLayoutKey = `${count}:${spacing}`;
+  }
+
+  _rebuildDominoesForWidth(width) {
+    const nextLayoutKey = this._dominoLayoutKey(width);
+    if (nextLayoutKey === this._currentDominoLayoutKey) return false;
+
+    this.dominoes.forEach((piece) => {
+      piece.root.removeFromParent();
+    });
+    this.dominoes = [];
+    this._initDominoes(this._getDominoCount(width), this._getDominoSpacing(width));
+    return true;
+  }
+
+  onDominoLayoutChange(callback) {
+    this._dominoLayoutListeners.add(callback);
+    return () => this._dominoLayoutListeners.delete(callback);
+  }
+
+  _notifyDominoLayoutChange() {
+    this._dominoLayoutListeners.forEach((callback) => callback(this.dominoes));
   }
 
   /** Subtle deterministic camera shake on final domino impact */
@@ -302,11 +345,8 @@ export class DominoScene {
     this._refreshTitleTexture();
   }
 
-  getDominoScale() {
-    const w = window.innerWidth;
-    if (w < 640) return 0.82;
-    if (w < 1024) return 0.92;
-    return 1;
+  getDominoScale(width = window.innerWidth) {
+    return CONFIG.domino.scale[this._getViewportTier(width)];
   }
 
   _onResize() {
@@ -314,7 +354,9 @@ export class DominoScene {
     this.renderer.setSize(w, h, false);
     this._applyCameraLayout(w, h);
 
-    const scale = this.getDominoScale();
+    const didRebuildRow = this._rebuildDominoesForWidth(w);
+    const tier = this._getViewportTier(w);
+    const scale = this.getDominoScale(w);
     const rowY = this._dominoRowY(scale);
     this.dominoes.forEach((d) => {
       d.root.scale.setScalar(scale);
@@ -322,13 +364,22 @@ export class DominoScene {
     });
 
     if (this.titlePlane) {
-      this.titlePlane.scale.setScalar(scale);
-      const baseY = CONFIG.title.plane.y;
-      this.titlePlane.position.y = baseY * (0.92 + scale * 0.08);
+      const { plane } = CONFIG.title;
+      const mobileTitle = tier === 'mobile' ? plane.mobile : null;
+      this.titlePlane.scale.setScalar(mobileTitle?.scale ?? scale);
+      this.titlePlane.position.set(
+        mobileTitle?.x ?? plane.x,
+        mobileTitle?.y ?? plane.y * (0.92 + scale * 0.08),
+        plane.z
+      );
     }
 
     const lookY = this._lookAtY ?? CONFIG.camera.desktop.lookY;
     this.camera.lookAt(0, lookY, 0);
+
+    if (didRebuildRow) {
+      this._notifyDominoLayoutChange();
+    }
   }
 
   render() {

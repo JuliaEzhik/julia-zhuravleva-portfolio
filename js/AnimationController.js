@@ -18,21 +18,51 @@ export class AnimationController {
    */
   constructor(scene, callbacks = {}) {
     this.scene = scene;
-    this.dominoes = scene.dominoes;
     this.onComplete = callbacks.onComplete ?? (() => {});
     this.onImpact = callbacks.onImpact ?? (() => {});
 
     this.state = 'idle';
     this.elapsed = 0;
-    this.fallStarts = new Array(this.dominoes.length).fill(Infinity);
-    this.contactTimes = new Array(this.dominoes.length).fill(-Infinity);
-    this.contactFired = new Array(this.dominoes.length).fill(false);
+    this.dominoes = [];
+    this.fallStarts = [];
+    this.contactTimes = [];
+    this.contactFired = [];
     this.lastFallStart = Infinity;
     this.shakeElapsed = 0;
     this.shakeActive = false;
     this._impactFired = false;
     this._completeFired = false;
     this._titleRevealElapsed = 0;
+    this._syncDominoes();
+    this._unsubscribeDominoLayout = scene.onDominoLayoutChange?.(() => {
+      this._handleDominoLayoutChange();
+    });
+  }
+
+  _syncDominoes() {
+    if (this.dominoes === this.scene.dominoes && this.fallStarts.length === this.scene.dominoes.length) {
+      return false;
+    }
+
+    this.dominoes = this.scene.dominoes;
+    this.fallStarts = new Array(this.dominoes.length).fill(Infinity);
+    this.contactTimes = new Array(this.dominoes.length).fill(-Infinity);
+    this.contactFired = new Array(this.dominoes.length).fill(false);
+    return true;
+  }
+
+  _handleDominoLayoutChange() {
+    const wasPlaying = this.state === 'playing';
+    const wasComplete = this.state === 'complete';
+
+    this._syncDominoes();
+    this.reset();
+
+    if (wasComplete) {
+      this.showEndState();
+    } else if (wasPlaying) {
+      this.start();
+    }
   }
 
   _impactAngleRad() {
@@ -146,6 +176,7 @@ export class AnimationController {
   }
 
   start() {
+    this._syncDominoes();
     this.reset(false);
     this.state = 'playing';
     this.elapsed = 0;
@@ -155,6 +186,7 @@ export class AnimationController {
 
   /** Show final pose immediately (prefers-reduced-motion) */
   showEndState() {
+    this._syncDominoes();
     this.state = 'complete';
     this.dominoes.forEach((d, i) => {
       d.setImpactHighlight(0);
@@ -173,6 +205,7 @@ export class AnimationController {
   }
 
   reset(clearDominoes = true) {
+    this._syncDominoes();
     if (clearDominoes) {
       this.dominoes.forEach((d) => d.reset());
     }
@@ -196,6 +229,7 @@ export class AnimationController {
    * @param {number} dt
    */
   update(dt) {
+    this._syncDominoes();
     if (this.state === 'idle') return;
 
     if (this.state === 'complete') {
