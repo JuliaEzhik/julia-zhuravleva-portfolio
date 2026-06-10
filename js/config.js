@@ -27,7 +27,7 @@ export const DOMINO_COLORS = [
 export const CONFIG = {
   dominoCount: {
     desktop: DOMINO_COLORS.length,
-    mobile: 7,
+    mobile: 5,
   },
 
   /** Domino dimensions (world units) */
@@ -40,12 +40,12 @@ export const CONFIG = {
     /** Tighter row for phone screens with fewer dominoes */
     mobileSpacing: 0.62,
     mobileLayout: 'vertical-zigzag',
-    mobileVerticalSpacing: 0.42,
-    mobileVerticalCenterY: 0.28,
-    mobileZigzagOffset: 0.23,
+    mobileVerticalSpacing: 0.5,
+    mobileVerticalCenterY: 0.2,
+    mobileZigzagOffset: 0.26,
     mobileRestAngleDeg: 70,
     mobileSettleSlide: 0.035,
-    scale: { desktop: 1, tablet: 0.92, mobile: 0.82 },
+    scale: { desktop: 1, tablet: 0.92, mobile: 0.92 },
     /** Per-domino yaw, so the faces stay visible while side/depth still reads clearly */
     yawDeg: 64,
     /** Row root Y — keeps dominoes grounded in the lower foreground band. */
@@ -56,8 +56,8 @@ export const CONFIG = {
   camera: {
     desktop: { x: 0.86, y: 1.76, z: 5.85, lookY: 0.88 },
     tablet: { x: 0.68, y: 1.72, z: 6.05, lookY: 0.84 },
-    mobile: { x: 0.12, y: 1.46, z: 5.55, lookY: 0.44 },
-    fov: { desktop: 42, tablet: 45, mobile: 44 },
+    mobile: { x: 0.1, y: 1.42, z: 5.18, lookY: 0.34 },
+    fov: { desktop: 42, tablet: 45, mobile: 42 },
   },
 
   /** Animation timing (seconds) */
@@ -89,14 +89,14 @@ export const CONFIG = {
     viewRotationDeg: -90,
     stairs: {
       mobile: {
-        stepHeight: 0.075,
-        stepWidth: 0.92,
-        stepDepth: 0.46,
-        coralLipHeight: 0.012,
-        coralLipDepth: 0.018,
+        stepHeight: 0.068,
+        stepWidth: 0.82,
+        stepDepth: 0.4,
+        coralLipHeight: 0.01,
+        coralLipDepth: 0.014,
         treadThickness: 0.01,
-        baseClearance: 0.018,
-        supportBackOffset: 0.055,
+        baseClearance: 0.016,
+        supportBackOffset: 0.04,
       },
     },
   },

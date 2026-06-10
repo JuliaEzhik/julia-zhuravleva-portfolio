@@ -376,8 +376,8 @@ export class DominoScene {
       this.dominoes.forEach((piece, index) => {
         const screenLeftSign = index % 2 === 0 ? 1 : -1;
         const progress = index / Math.max(1, count - 1);
-        const taper = 0.42 + progress * 1.34;
-        const centerDrift = (progress - 0.5) * 0.04;
+        const taper = 0.54 + progress * 0.78;
+        const centerDrift = (progress - 0.5) * 0.025;
         piece.root.scale.setScalar(scale);
         piece.root.position.set(
           0,
