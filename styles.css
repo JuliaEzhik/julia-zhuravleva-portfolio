@@ -274,6 +274,14 @@ body {
   transform: scaleX(1);
 }
 
+.fuse-section.is-igniting [data-fuse-heading] {
+  animation: fuse-heading-ignite 880ms ease-out;
+}
+
+.fuse-section.is-igniting [data-fuse-heading]::after {
+  animation: fuse-heading-glow 880ms ease-out;
+}
+
 @keyframes fuse-flame-flicker {
   0% {
     opacity: 0.82;
@@ -289,6 +297,37 @@ body {
       translate(-50%, -78%)
       rotate(calc(var(--spark-angle) - 6deg))
       scale(1.08, 1.18);
+  }
+}
+
+@keyframes fuse-heading-ignite {
+  0%,
+  100% {
+    filter: saturate(1.06);
+  }
+
+  35% {
+    filter: saturate(1.38) brightness(1.12);
+    text-shadow:
+      0 0 24px rgba(255, 190, 115, 0.72),
+      0 0 58px rgba(235, 71, 16, 0.42);
+  }
+}
+
+@keyframes fuse-heading-glow {
+  0% {
+    opacity: 0;
+    transform: scaleX(0.4);
+  }
+
+  42% {
+    opacity: 1;
+    transform: scaleX(1.08);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scaleX(1);
   }
 }
 

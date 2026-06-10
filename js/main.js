@@ -163,7 +163,9 @@ initI18n();
     milestones: [],
     pathLength: 0,
     progress: 0,
+    sparkDistance: 0,
     lastParticleAt: 0,
+    layoutRetryTimer: 0,
     isScheduled: false,
     isLayoutScheduled: false,
     isActive: false,
@@ -195,8 +197,18 @@ initI18n();
       active: state.isActive,
       pathLength: Number(state.pathLength.toFixed(2)),
       progress: Number(state.progress.toFixed(4)),
+      sparkDistance: Number(state.sparkDistance.toFixed(2)),
       sections: state.sections.length,
     };
+  }
+
+  function queueLayoutRetry() {
+    if (state.layoutRetryTimer) return;
+
+    state.layoutRetryTimer = window.setTimeout(() => {
+      state.layoutRetryTimer = 0;
+      scheduleLayout();
+    }, 120);
   }
 
   function setReducedMotionState() {
@@ -241,33 +253,44 @@ initI18n();
     }, '');
   }
 
-  function findLengthRatioForPoint(target, startRatio = 0) {
-    const sampleCount = 180;
-    let closestRatio = startRatio;
+  function findLengthForPoint(target, startDistance = 0) {
+    const sampleCount = 360;
+    const startRatio = state.pathLength > 0 ? clamp(startDistance / state.pathLength, 0, 1) : 0;
+    let closestDistanceOnPath = startDistance;
     let closestDistance = Number.POSITIVE_INFINITY;
 
     for (let i = Math.round(startRatio * sampleCount); i <= sampleCount; i += 1) {
       const ratio = i / sampleCount;
-      const point = ropePath.getPointAtLength(state.pathLength * ratio);
+      const distanceOnPath = state.pathLength * ratio;
+      const point = ropePath.getPointAtLength(distanceOnPath);
       const distance = Math.hypot(point.x - target.x, point.y - target.y);
 
       if (distance < closestDistance) {
         closestDistance = distance;
-        closestRatio = ratio;
+        closestDistanceOnPath = distanceOnPath;
       }
     }
 
-    return closestRatio;
+    return closestDistanceOnPath;
   }
 
   function calculateMilestones(points) {
-    let previousRatio = 0;
+    let previousDistance = 0;
 
     return points.map((point, index) => {
       if (index === 0) return 0;
 
-      previousRatio = findLengthRatioForPoint(point, previousRatio);
-      return previousRatio;
+      previousDistance = findLengthForPoint(point, previousDistance);
+      return previousDistance;
+    });
+  }
+
+  function setBurnProgress(sparkDistance) {
+    const dashOffset = Math.max(state.pathLength - sparkDistance, 0);
+
+    [burnedPath, emberTrailPath].forEach((path) => {
+      path.style.strokeDasharray = `${state.pathLength}`;
+      path.style.strokeDashoffset = `${dashOffset}`;
     });
   }
 
@@ -305,7 +328,21 @@ initI18n();
     ropePath.setAttribute('d', pathData);
     burnedPath.setAttribute('d', pathData);
     emberTrailPath.setAttribute('d', pathData);
+    burnedPath.removeAttribute('pathLength');
+    emberTrailPath.removeAttribute('pathLength');
     state.pathLength = ropePath.getTotalLength();
+
+    if (!Number.isFinite(state.pathLength) || state.pathLength <= 0) {
+      state.pathLength = 0;
+      state.sparkDistance = 0;
+      state.isActive = false;
+      overlay.hidden = true;
+      document.documentElement.classList.remove('fuse-ready');
+      writeSelfCheck();
+      queueLayoutRetry();
+      return;
+    }
+
     state.milestones = calculateMilestones(state.points);
     state.isActive = true;
     overlay.hidden = false;
@@ -314,21 +351,30 @@ initI18n();
   }
 
   function getScrollProgress() {
-    const firstPoint = state.points[0];
-    const lastPoint = state.points[state.points.length - 1];
+    const doc = document.documentElement;
+    const body = document.body;
+    const scrollingElement = document.scrollingElement || doc;
+    const scrollHeight = Math.max(doc.scrollHeight, body.scrollHeight);
+    const viewportHeight = window.innerHeight || doc.clientHeight || 1;
+    const maxScroll = Math.max(scrollHeight - viewportHeight, 1);
 
-    if (!firstPoint || !lastPoint || firstPoint.y === lastPoint.y) {
-      return 0;
-    }
-
-    const triggerY = window.scrollY + window.innerHeight * 0.58;
-    return clamp((triggerY - firstPoint.y) / (lastPoint.y - firstPoint.y), 0, 1);
+    return clamp(scrollingElement.scrollTop / maxScroll, 0, 1);
   }
 
-  function setIgnitedSections(progress) {
+  function setIgnitedSections(sparkDistance) {
     state.sections.forEach(({ section }, index) => {
-      if (progress >= state.milestones[index] - 0.015) {
+      const milestone = state.milestones[index] ?? Number.POSITIVE_INFINITY;
+      const tolerance = Math.max(state.pathLength * 0.006, 8);
+
+      if (sparkDistance + tolerance >= milestone) {
+        const wasIgnited = section.classList.contains('is-ignited');
+
         section.classList.add('is-ignited');
+
+        if (!wasIgnited) {
+          section.classList.add('is-igniting');
+          window.setTimeout(() => section.classList.remove('is-igniting'), 900);
+        }
       }
     });
   }
@@ -366,20 +412,23 @@ initI18n();
     state.isScheduled = false;
 
     if (!state.isActive || state.pathLength <= 0) {
+      queueLayoutRetry();
       return;
     }
 
     const progress = getScrollProgress();
-    const length = state.pathLength * progress;
-    const point = ropePath.getPointAtLength(length);
-    const nextPoint = ropePath.getPointAtLength(clamp(length + 2, 0, state.pathLength));
+    const sparkDistance = clamp(progress * state.pathLength, 0, state.pathLength);
+    const point = ropePath.getPointAtLength(sparkDistance);
+    const nextPoint = ropePath.getPointAtLength(clamp(sparkDistance + 2, 0, state.pathLength));
     const angle = Math.atan2(nextPoint.y - point.y, nextPoint.x - point.x);
     const now = performance.now();
 
     state.progress = progress;
+    state.sparkDistance = sparkDistance;
     overlay.style.setProperty('--fuse-progress', progress.toFixed(4));
+    setBurnProgress(sparkDistance);
     updateSpark(point, angle);
-    setIgnitedSections(progress);
+    setIgnitedSections(sparkDistance);
     writeSelfCheck();
 
     if (now - state.lastParticleAt > 95 && progress > 0.01 && progress < 0.995) {
