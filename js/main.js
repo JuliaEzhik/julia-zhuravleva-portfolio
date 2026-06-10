@@ -174,6 +174,8 @@ initI18n();
     progress: 0,
     sparkDistance: 0,
     sparkViewportPoint: { x: -100, y: -100 },
+    mobileLastValidRoutePoint: null,
+    mobileLastValidEndPoint: null,
     lastParticleAt: 0,
     layoutRetryTimer: 0,
     isScheduled: false,
@@ -183,6 +185,10 @@ initI18n();
 
   function clamp(value, min, max) {
     return Math.min(Math.max(value, min), max);
+  }
+
+  function isFinitePoint(point) {
+    return Number.isFinite(point?.x) && Number.isFinite(point?.y);
   }
 
   function getViewportMetrics() {
@@ -382,6 +388,25 @@ initI18n();
     }).filter((sample) => Number.isFinite(sample.x) && Number.isFinite(sample.y));
   }
 
+  function getRouteEndPoint() {
+    const lastSample = state.routeSamples[state.routeSamples.length - 1];
+    if (isFinitePoint(lastSample)) return lastSample;
+
+    const lastPoint = state.points[state.points.length - 1];
+    return isFinitePoint(lastPoint) ? lastPoint : null;
+  }
+
+  function rememberMobileRoutePoint(point, isEndPoint = false) {
+    if (!isMobileFuseLayout() || !isFinitePoint(point)) return;
+
+    const routePoint = { x: point.x, y: point.y };
+    state.mobileLastValidRoutePoint = routePoint;
+
+    if (isEndPoint) {
+      state.mobileLastValidEndPoint = routePoint;
+    }
+  }
+
   function setBurnProgress(sparkDistance) {
     const dashOffset = Math.max(state.pathLength - sparkDistance, 0);
 
@@ -442,6 +467,7 @@ initI18n();
 
     buildRouteSamples();
     state.milestones = calculateMilestones(state.points);
+    rememberMobileRoutePoint(getRouteEndPoint(), true);
     state.isActive = true;
     overlay.hidden = false;
     document.documentElement.classList.add('fuse-ready');
@@ -452,7 +478,19 @@ initI18n();
     const doc = document.documentElement;
     const body = document.body;
     const scrollHeight = Math.max(doc.scrollHeight, body.scrollHeight);
-    const viewportHeight = getViewportMetrics().height || window.innerHeight || doc.clientHeight || 1;
+    const viewport = getViewportMetrics();
+
+    if (isMobileFuseLayout()) {
+      const viewportHeight = Math.max(doc.clientHeight || 0, window.innerHeight || 0, viewport.height || 0, 1);
+      const maxScroll = Math.max(scrollHeight - viewportHeight, 1);
+      const rawScrollTop = getScrollY();
+      const scrollTop = clamp(rawScrollTop, 0, maxScroll);
+      const isAtDocumentEnd = scrollTop >= maxScroll - 2 || rawScrollTop + viewport.height >= scrollHeight - 2;
+
+      return isAtDocumentEnd ? 1 : clamp(scrollTop / maxScroll, 0, 1);
+    }
+
+    const viewportHeight = viewport.height || window.innerHeight || doc.clientHeight || 1;
     const maxScroll = Math.max(scrollHeight - viewportHeight, 1);
     const scrollTop = getScrollY();
 
@@ -528,9 +566,13 @@ initI18n();
   }
 
   function toViewportPoint(point, progress) {
-    const sourcePoint = Number.isFinite(point?.x) && Number.isFinite(point?.y)
-      ? point
-      : getFallbackSparkPoint(progress);
+    let sourcePoint = isFinitePoint(point) ? point : null;
+
+    if (!sourcePoint && isMobileFuseLayout()) {
+      sourcePoint = state.mobileLastValidRoutePoint || state.mobileLastValidEndPoint || getRouteEndPoint();
+    }
+
+    sourcePoint = sourcePoint || getFallbackSparkPoint(progress);
     const bounds = getSafeViewportBounds();
 
     const viewportPoint = {
@@ -611,22 +653,50 @@ initI18n();
     }
 
     const progress = getScrollProgress();
-    const sparkDistance = getRouteDistanceForViewport(progress);
+    const isMobile = isMobileFuseLayout();
+    const mobileAtEnd = isMobile && progress >= 0.998;
+    const sparkDistance = mobileAtEnd
+      ? state.pathLength
+      : clamp(getRouteDistanceForViewport(progress), 0, state.pathLength);
     let point = ropePath.getPointAtLength(sparkDistance);
-    let nextPoint = ropePath.getPointAtLength(clamp(sparkDistance + 2, 0, state.pathLength));
+    let nextPoint = ropePath.getPointAtLength(clamp(sparkDistance + (mobileAtEnd ? -2 : 2), 0, state.pathLength));
+
+    if (isMobile && mobileAtEnd) {
+      const endPoint = getRouteEndPoint() || state.mobileLastValidEndPoint;
+      const previousPoint = nextPoint;
+
+      if (isFinitePoint(endPoint)) {
+        point = endPoint;
+        nextPoint = isFinitePoint(previousPoint)
+          ? previousPoint
+          : state.mobileLastValidRoutePoint || endPoint;
+      }
+    }
 
     if (
-      !Number.isFinite(point.x) ||
-      !Number.isFinite(point.y) ||
-      !Number.isFinite(nextPoint.x) ||
-      !Number.isFinite(nextPoint.y)
+      !isFinitePoint(point) ||
+      !isFinitePoint(nextPoint)
     ) {
-      point = getFallbackSparkPoint(progress);
-      nextPoint = getFallbackSparkPoint(clamp(progress + 0.002, 0, 1));
+      if (isMobile) {
+        const mobileFallbackPoint = mobileAtEnd
+          ? state.mobileLastValidEndPoint || getRouteEndPoint() || state.mobileLastValidRoutePoint
+          : state.mobileLastValidRoutePoint || getRouteEndPoint() || state.mobileLastValidEndPoint;
+
+        point = mobileFallbackPoint || getFallbackSparkPoint(progress);
+        nextPoint = point;
+      } else {
+        point = getFallbackSparkPoint(progress);
+        nextPoint = getFallbackSparkPoint(clamp(progress + 0.002, 0, 1));
+      }
+
       queueLayoutRetry();
     }
 
-    const angle = Math.atan2(nextPoint.y - point.y, nextPoint.x - point.x);
+    rememberMobileRoutePoint(point, mobileAtEnd || sparkDistance >= state.pathLength - 1);
+
+    const angle = mobileAtEnd
+      ? Math.atan2(point.y - nextPoint.y, point.x - nextPoint.x)
+      : Math.atan2(nextPoint.y - point.y, nextPoint.x - point.x);
     const now = performance.now();
 
     state.progress = progress;
