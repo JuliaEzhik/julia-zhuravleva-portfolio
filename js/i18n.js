@@ -28,7 +28,8 @@ export const translations = {
     'hero.desc':
       'A row of three-dimensional domino tiles falls in a chain reaction. The final tile lands to reveal Julia Zhuravleva, Web Developer and UI/UX designer.',
     'hero.kicker': 'Interactive Intro',
-    'hero.intro': 'A cinematic domino reveal for a front-end developer with a UI/UX focus.',
+    'hero.intro':
+      'Distinctive web experiences with a bold visual point of view, built with responsive front-end craft and clear UI/UX thinking.',
     'hero.availability': 'Available for freelance',
     'hero.subtitle': 'Web Developer · UI/UX',
     'hero.replay': 'Replay',
@@ -140,7 +141,8 @@ export const translations = {
     'hero.desc':
       'Ряд трёхмерных домино падает цепной реакцией. Последняя плитка открывает имя Юлия Журавлёва — веб-разработчик и UI/UX-дизайнер.',
     'hero.kicker': 'Интерактивное вступление',
-    'hero.intro': 'Кинематографичное домино-раскрытие для фронтенд-разработчика с фокусом на UI/UX.',
+    'hero.intro':
+      'Выразительные веб-проекты с сильным визуальным взглядом, адаптивным фронтендом и продуманным UI/UX.',
     'hero.availability': 'Открыта для фриланса',
     'hero.subtitle': 'Веб-разработчик · UI/UX',
     'hero.replay': 'Повторить',

@@ -2152,7 +2152,7 @@ section[id] {
   }
 
   .site-nav {
-    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     gap: 0.42rem;
     padding: 0.45rem;
     border-radius: 22px;
@@ -2172,13 +2172,11 @@ section[id] {
   }
 
   .site-nav__lang {
-    order: 1;
-    padding: 0.16rem;
-    background: rgba(5, 6, 9, 0.38);
+    display: none;
   }
 
   .site-nav__toggle {
-    order: 2;
+    order: 1;
     display: inline-flex;
     width: 2.35rem;
     height: 2.35rem;
@@ -2193,6 +2191,7 @@ section[id] {
 
   .site-nav__links {
     grid-column: 1 / -1;
+    order: 2;
     display: grid;
     grid-template-columns: 1fr;
     gap: 0.25rem;
@@ -2207,10 +2206,20 @@ section[id] {
   }
 
   .site-nav.is-open .site-nav__links {
-    max-height: 13rem;
+    max-height: 15rem;
     padding-top: 0.35rem;
     opacity: 1;
     pointer-events: auto;
+  }
+
+  .site-nav.is-open .site-nav__lang {
+    grid-column: 1 / -1;
+    order: 3;
+    display: inline-flex;
+    justify-self: center;
+    margin-top: 0.15rem;
+    padding: 0.18rem;
+    background: rgba(5, 6, 9, 0.42);
   }
 
   .site-nav__links a {
@@ -2280,7 +2289,7 @@ section[id] {
   .hero {
     min-height: 100vh;
     min-height: 100svh;
-    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-rows: minmax(0, 1fr) auto;
     align-items: stretch;
     gap: 0.72rem;
     padding: clamp(5.15rem, 15svh, 5.9rem) 0.82rem 0.86rem;
@@ -2307,19 +2316,7 @@ section[id] {
   }
 
   .hero__header {
-    gap: 0.46rem;
-    align-content: start;
-  }
-
-  .hero__header .section-kicker {
-    font-size: 0.66rem;
-    letter-spacing: 0.14em;
-  }
-
-  .hero__intro {
-    max-width: 25rem;
-    font-size: clamp(0.82rem, 3.7vw, 0.94rem);
-    line-height: 1.5;
+    display: none;
   }
 
   .tech-marquee {
@@ -2336,7 +2333,7 @@ section[id] {
   }
 
   .stage {
-    min-height: clamp(28rem, 66svh, 36rem);
+    min-height: clamp(30rem, 72svh, 38rem);
     aspect-ratio: auto;
     max-height: none;
     border-radius: 22px;
@@ -2352,14 +2349,7 @@ section[id] {
   }
 
   .availability-pill {
-    top: 0.72rem;
-    left: 50%;
-    max-width: calc(100% - 1.4rem);
-    justify-content: center;
-    padding: 0.46rem 0.66rem;
-    font-size: 0.62rem;
-    letter-spacing: 0.07em;
-    transform: translateX(-50%);
+    display: none;
   }
 
   .replay-btn {
@@ -2486,16 +2476,11 @@ section[id] {
     max-width: 8.6rem;
   }
 
-  .site-nav__lang-btn {
-    min-width: 1.85rem;
-    padding-inline: 0.4rem;
-  }
-
   .hero {
     padding-inline: 0.68rem;
   }
 
   .stage {
-    min-height: clamp(27rem, 64svh, 34rem);
+    min-height: clamp(29rem, 70svh, 36rem);
   }
 }

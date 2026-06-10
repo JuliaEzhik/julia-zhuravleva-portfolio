@@ -141,12 +141,26 @@ export class DominoScene {
     this.table.position.y = 0;
     this.table.receiveShadow = true;
     this.scene.add(this.table);
+
+    const tableEdgeMat = new THREE.MeshStandardMaterial({
+      color: 0x090a0f,
+      roughness: 0.88,
+      metalness: 0.04,
+    });
+    tableEdgeMat.envMap = this._envMap;
+    tableEdgeMat.envMapIntensity = 0.12;
+
+    this.tableEdge = new THREE.Mesh(new THREE.BoxGeometry(1, 0.09, 1), tableEdgeMat);
+    this.tableEdge.receiveShadow = true;
+    this.tableEdge.castShadow = true;
+    this.scene.add(this.tableEdge);
     this._applyTableLayout(window.innerWidth);
   }
 
-  _dominoRowY(scale = 1) {
+  _dominoRowY(scale = 1, width = window.innerWidth) {
     const base = CONFIG.domino.rowY ?? 0;
-    return base * (0.9 + scale * 0.1);
+    const table = CONFIG.scene.table?.[this._getViewportTier(width)] ?? CONFIG.scene.table?.desktop;
+    return (table?.y ?? 0) + base * (0.9 + scale * 0.1);
   }
 
   _getViewportTier(width = window.innerWidth) {
@@ -162,6 +176,11 @@ export class DominoScene {
 
     this.table.scale.set(table.width, table.depth, 1);
     this.table.position.y = table.y ?? 0;
+
+    if (this.tableEdge) {
+      this.tableEdge.scale.set(table.width, 1, table.depth);
+      this.tableEdge.position.set(0, (table.y ?? 0) - 0.055, 0);
+    }
   }
 
   _getDominoCount(width = window.innerWidth) {
@@ -236,7 +255,7 @@ export class DominoScene {
     const totalDepth = (this.dominoes.length - 1) * spacing;
     /** Index 0 starts at local +Z; view rotation maps the chain left-to-right. */
     const startZ = totalDepth / 2;
-    const rowY = this._dominoRowY(scale);
+    const rowY = this._dominoRowY(scale, width);
 
     this.dominoes.forEach((piece, index) => {
       piece.root.scale.setScalar(scale);

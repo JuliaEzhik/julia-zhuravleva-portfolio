@@ -38,8 +38,8 @@ export const CONFIG = {
     /** Center spacing along the row; leaves a visible physical gap between yawed bodies */
     spacing: 0.72,
     /** Tighter row for phone screens with fewer dominoes */
-    mobileSpacing: 0.66,
-    mobileLayout: 'vertical-zigzag',
+    mobileSpacing: 0.62,
+    mobileLayout: 'row',
     mobileVerticalSpacing: 0.48,
     mobileVerticalCenterY: 0.92,
     mobileZigzagOffset: 0.28,
@@ -47,15 +47,15 @@ export const CONFIG = {
     /** Per-domino yaw, so the faces stay visible while side/depth still reads clearly */
     yawDeg: 64,
     /** Row root Y — keeps dominoes grounded in the lower foreground band. */
-    rowY: 0.04,
+    rowY: 0.012,
   },
 
   /** Camera sits in front with a slight side offset so both bands read clearly */
   camera: {
     desktop: { x: 0.86, y: 1.76, z: 5.85, lookY: 0.88 },
     tablet: { x: 0.68, y: 1.72, z: 6.05, lookY: 0.84 },
-    mobile: { x: 0.2, y: 1.98, z: 5.75, lookY: 1.16 },
-    fov: { desktop: 42, tablet: 45, mobile: 47 },
+    mobile: { x: 0.26, y: 1.54, z: 5.35, lookY: 0.84 },
+    fov: { desktop: 42, tablet: 45, mobile: 45 },
   },
 
   /** Animation timing (seconds) */
@@ -81,7 +81,7 @@ export const CONFIG = {
     table: {
       desktop: { width: 14, depth: 8, y: 0 },
       tablet: { width: 14, depth: 8, y: 0 },
-      mobile: { width: 8.2, depth: 12.2, y: -0.02 },
+      mobile: { width: 8.6, depth: 7.2, y: 0 },
     },
     /** Rotates the whole domino/title composition around its center pivot */
     viewRotationDeg: -90,
@@ -96,7 +96,7 @@ export const CONFIG = {
       x: -1.42,
       y: 1.82,
       z: 0,
-      mobile: { x: -1.12, y: 2.82, scale: 0.78 },
+      mobile: { x: -1.04, y: 1.9, scale: 0.96 },
     },
     canvas: {
       width: 1024,
