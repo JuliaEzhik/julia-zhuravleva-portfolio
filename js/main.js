@@ -139,6 +139,7 @@ initI18n();
   'use strict';
 
   const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const mobileFuseQuery = window.matchMedia('(max-width: 639px)');
   const overlay = document.getElementById('fuse-overlay');
   const svg = overlay?.querySelector('.fuse-overlay__svg');
   const ropePath = document.getElementById('fuse-rope');
@@ -199,7 +200,13 @@ initI18n();
 
     const rect = element.getBoundingClientRect();
     const style = window.getComputedStyle(element);
-    return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+    return (
+      rect.width > 0 &&
+      rect.height > 0 &&
+      !element.classList.contains('visually-hidden') &&
+      style.visibility !== 'hidden' &&
+      style.display !== 'none'
+    );
   }
 
   function getFuseAnchor(section) {
@@ -229,13 +236,27 @@ initI18n();
     igniteAll();
     window.removeEventListener('scroll', scheduleUpdate);
     window.removeEventListener('resize', scheduleLayout);
+    mobileFuseQuery.removeEventListener('change', scheduleLayout);
   }
 
-  function getAnchorPoint(anchor) {
+  function getAnchorPoint(section, anchor) {
     const rect = anchor.getBoundingClientRect();
-    const railOffset = window.innerWidth < 760 ? 18 : 38;
+
+    if (mobileFuseQuery.matches) {
+      const sectionRect = section.getBoundingClientRect();
+      const railX = window.scrollX + clamp(document.documentElement.clientWidth * 0.055, 18, 26);
+      const sectionY = sectionRect.top + window.scrollY + Math.min(sectionRect.height * 0.18, 82);
+      const anchorY = rect.top + window.scrollY + rect.height * 0.52;
+
+      return {
+        x: railX,
+        y: Math.max(sectionY, anchorY),
+      };
+    }
+
     const minX = window.scrollX + 18;
     const maxX = window.scrollX + document.documentElement.clientWidth - 18;
+    const railOffset = 38;
     const preferredX = rect.left + window.scrollX - railOffset;
 
     return {
@@ -244,27 +265,14 @@ initI18n();
     };
   }
 
-  function syncSvgViewport() {
-    const doc = document.documentElement;
-    const viewportWidth = Math.max(doc.clientWidth, window.innerWidth || 0);
-    const viewportHeight = Math.max(doc.clientHeight, window.innerHeight || 0);
-
-    svg.setAttribute('viewBox', `${window.scrollX} ${window.scrollY} ${viewportWidth} ${viewportHeight}`);
-    svg.setAttribute('width', String(viewportWidth));
-    svg.setAttribute('height', String(viewportHeight));
-  }
-
-  function toViewportPoint(point) {
-    return {
-      x: point.x - window.scrollX,
-      y: point.y - window.scrollY,
-    };
-  }
-
   function buildFusePath(points) {
     return points.reduce((path, point, index) => {
       if (index === 0) {
         return `M ${point.x.toFixed(1)} ${point.y.toFixed(1)}`;
+      }
+
+      if (mobileFuseQuery.matches) {
+        return `${path} L ${point.x.toFixed(1)} ${point.y.toFixed(1)}`;
       }
 
       const previous = points[index - 1];
@@ -311,6 +319,11 @@ initI18n();
   }
 
   function layoutFuse() {
+    const doc = document.documentElement;
+    const body = document.body;
+    const docWidth = Math.max(doc.clientWidth, doc.scrollWidth, body.scrollWidth);
+    const docHeight = Math.max(doc.scrollHeight, body.scrollHeight, window.innerHeight);
+
     sections = getFuseSections();
     state.isLayoutScheduled = false;
 
@@ -330,9 +343,12 @@ initI18n();
     overlay.hidden = false;
     document.documentElement.classList.add('fuse-ready');
 
-    syncSvgViewport();
+    overlay.style.setProperty('--fuse-doc-height', `${docHeight}px`);
+    svg.setAttribute('viewBox', `0 0 ${docWidth} ${docHeight}`);
+    svg.setAttribute('width', String(docWidth));
+    svg.setAttribute('height', String(docHeight));
 
-    state.points = sections.map(({ anchor }) => getAnchorPoint(anchor));
+    state.points = sections.map(({ section, anchor }) => getAnchorPoint(section, anchor));
     const pathData = buildFusePath(state.points);
 
     ropePath.setAttribute('d', pathData);
@@ -340,9 +356,10 @@ initI18n();
     emberTrailPath.setAttribute('d', pathData);
     state.pathLength = ropePath.getTotalLength();
 
-    [burnedPath, emberTrailPath].forEach((path) => {
-      path.style.strokeDasharray = `${state.pathLength}`;
-      path.style.strokeDashoffset = `${state.pathLength}`;
+    [ropePath, burnedPath, emberTrailPath].forEach((path) => {
+      path.setAttribute('pathLength', '1');
+      path.style.strokeDasharray = '';
+      path.style.strokeDashoffset = '';
     });
 
     state.milestones = calculateMilestones(state.points);
@@ -393,11 +410,9 @@ initI18n();
   }
 
   function updateSpark(point, angle) {
-    const viewportPoint = toViewportPoint(point);
-
     spark.classList.add('is-visible');
     spark.style.setProperty('--spark-angle', `${angle}rad`);
-    spark.style.transform = `translate3d(${viewportPoint.x.toFixed(1)}px, ${viewportPoint.y.toFixed(1)}px, 0)`;
+    spark.style.transform = `translate3d(${point.x.toFixed(1)}px, ${point.y.toFixed(1)}px, 0)`;
   }
 
   function updateFuse() {
@@ -406,8 +421,6 @@ initI18n();
     if (!state.isActive || state.pathLength <= 0) {
       return;
     }
-
-    syncSvgViewport();
 
     const progress = getScrollProgress();
     const length = state.pathLength * progress;
@@ -418,18 +431,14 @@ initI18n();
 
     state.progress = progress;
     overlay.style.setProperty('--fuse-progress', progress.toFixed(4));
-    burnedPath.style.strokeDashoffset = `${state.pathLength - length}`;
-    emberTrailPath.style.strokeDashoffset = `${state.pathLength - length}`;
     updateSpark(point, angle);
     setIgnitedSections(progress);
 
     if (now - state.lastParticleAt > 95 && progress > 0.01 && progress < 0.995) {
-      const viewportPoint = toViewportPoint(point);
-
-      emitParticle('ember', viewportPoint, angle);
+      emitParticle('ember', point, angle);
 
       if (Math.random() > 0.45) {
-        emitParticle('smoke', viewportPoint, angle);
+        emitParticle('smoke', point, angle);
       }
 
       state.lastParticleAt = now;
@@ -453,8 +462,12 @@ initI18n();
   function activateFuse() {
     if (reducedMotionQuery.matches) return;
 
+    window.removeEventListener('scroll', scheduleUpdate);
+    window.removeEventListener('resize', scheduleLayout);
+    mobileFuseQuery.removeEventListener('change', scheduleLayout);
     window.addEventListener('scroll', scheduleUpdate, { passive: true });
     window.addEventListener('resize', scheduleLayout);
+    mobileFuseQuery.addEventListener('change', scheduleLayout);
     scheduleLayout();
   }
 
