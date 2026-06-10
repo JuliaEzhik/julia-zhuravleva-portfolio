@@ -77,13 +77,17 @@ body {
 /* ── Scroll fuse ──────────────────────────────────────────────── */
 .fuse-overlay {
   --fuse-progress: 0;
-  position: absolute;
-  inset: 0 auto auto 0;
+  --fuse-x: clamp(1.35rem, 4vw, 3.1rem);
+  --fuse-top: clamp(5.4rem, 13vh, 7.4rem);
+  --fuse-bottom: clamp(2.6rem, 8vh, 4rem);
+  position: fixed;
+  inset: 0;
   z-index: 8;
-  width: 100%;
-  height: var(--fuse-doc-height, 100vh);
+  width: 100vw;
+  height: 100dvh;
   overflow: hidden;
   pointer-events: none;
+  contain: layout paint;
 }
 
 .fuse-overlay__svg {
@@ -128,7 +132,7 @@ body {
 
 .fuse-spark {
   --spark-angle: 0deg;
-  position: absolute;
+  position: fixed;
   left: 0;
   top: 0;
   width: 1px;
@@ -195,7 +199,7 @@ body {
 
 .fuse-ember,
 .fuse-smoke-puff {
-  position: absolute;
+  position: fixed;
   left: 0;
   top: 0;
   border-radius: 999px;
@@ -218,6 +222,38 @@ body {
   filter: blur(5px);
   mix-blend-mode: screen;
   animation: fuse-smoke-drift 1600ms ease-out forwards;
+}
+
+.fuse-node {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 0.62rem;
+  height: 0.62rem;
+  border: 1px solid rgba(255, 190, 139, 0.5);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 38% 30%, rgba(255, 244, 210, 0.9) 0 12%, rgba(255, 122, 51, 0.82) 32%, rgba(74, 51, 39, 0.92) 68%),
+    #4a3327;
+  box-shadow:
+    0 0 0 4px rgba(255, 90, 31, 0.08),
+    0 0 18px rgba(235, 71, 16, 0.2);
+  opacity: 0.78;
+  transform: translate3d(calc(var(--node-x) - 50%), calc(var(--node-y) - 50%), 0) scale(0.8);
+  transition:
+    opacity 0.28s ease,
+    transform 0.28s ease,
+    box-shadow 0.28s ease;
+  will-change: transform, opacity;
+}
+
+.fuse-node.is-ignited {
+  opacity: 1;
+  transform: translate3d(calc(var(--node-x) - 50%), calc(var(--node-y) - 50%), 0) scale(1);
+  box-shadow:
+    0 0 0 5px rgba(255, 90, 31, 0.14),
+    0 0 20px rgba(255, 122, 51, 0.68),
+    0 0 42px rgba(235, 71, 16, 0.32);
 }
 
 .fuse-ready .fuse-section .fuse-reveal {
