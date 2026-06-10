@@ -11,8 +11,6 @@ const EDGE_BAND_THICKNESS = 0.014;
 const YAW_RAD = THREE.MathUtils.degToRad(CONFIG.domino.yawDeg);
 const FALL_AXIS = new THREE.Vector3(Math.cos(YAW_RAD), 0, -Math.sin(YAW_RAD)).normalize();
 const LOCAL_BACK = new THREE.Vector3(-Math.sin(YAW_RAD), 0, -Math.cos(YAW_RAD)).normalize();
-const BACK_HINGE_X = LOCAL_BACK.x * (D / 2);
-const BACK_HINGE_Z = LOCAL_BACK.z * (D / 2);
 
 let coralGradientTexture;
 let boneTexture;
@@ -324,9 +322,10 @@ export class DominoPiece {
     const wobble = motion.wobble ?? 0;
     const yawWobble = motion.yawWobble ?? 0;
     const compression = motion.compression ?? 0;
+    const fallSign = motion.fallSign ?? 1;
 
-    this.fallPivot.quaternion.setFromAxisAngle(FALL_AXIS, -radians + wobble);
-    this._applyHingePosition(motion.slideBack ?? motion.slideZ ?? 0, motion.liftY ?? 0);
+    this.fallPivot.quaternion.setFromAxisAngle(FALL_AXIS, -radians * fallSign + wobble * fallSign);
+    this._applyHingePosition(motion.slideBack ?? motion.slideZ ?? 0, motion.liftY ?? 0, fallSign);
     this.yawGroup.rotation.y = THREE.MathUtils.degToRad(CONFIG.domino.yawDeg) + yawWobble;
     this._applyVisualCompression(compression);
   }
@@ -335,16 +334,17 @@ export class DominoPiece {
    * Last domino: cascade fall then hero settle — inset face toward camera.
    * @param {number} t 0–1 through last-domino animation
    */
-  setLastDominoPose(t) {
+  setLastDominoPose(t, motion = {}) {
     this.lastPhase = t;
     const yaw = THREE.MathUtils.degToRad(CONFIG.domino.yawDeg);
     const layAngle = Math.PI / 2;
     const heroAngle = THREE.MathUtils.degToRad(86);
     const impactT = 0.64;
+    const fallSign = motion.fallSign ?? 1;
 
     if (t >= 1) {
-      this.fallPivot.quaternion.setFromAxisAngle(FALL_AXIS, -heroAngle);
-      this._applyHingePosition(D * 0.18, 0);
+      this.fallPivot.quaternion.setFromAxisAngle(FALL_AXIS, -heroAngle * fallSign);
+      this._applyHingePosition(D * 0.18, 0, fallSign);
       this.yawGroup.rotation.y = yaw;
       this._applyVisualCompression(0);
       return;
@@ -356,8 +356,8 @@ export class DominoPiece {
       const angle = accelerated * layAngle * 1.02;
       const yawWobble = Math.sin(u * Math.PI) * 0.012;
 
-      this.fallPivot.quaternion.setFromAxisAngle(FALL_AXIS, -angle);
-      this._applyHingePosition();
+      this.fallPivot.quaternion.setFromAxisAngle(FALL_AXIS, -angle * fallSign);
+      this._applyHingePosition(0, 0, fallSign);
       this.yawGroup.rotation.y = yaw + yawWobble;
       this._applyVisualCompression(0);
       return;
@@ -370,8 +370,8 @@ export class DominoPiece {
     const angle = THREE.MathUtils.lerp(layAngle * 1.02, heroAngle, eased) + rebound * 0.045;
     const compression = Math.sin(Math.min(u * Math.PI, Math.PI)) * damp * 1.35;
 
-    this.fallPivot.quaternion.setFromAxisAngle(FALL_AXIS, -angle);
-    this._applyHingePosition(eased * D * 0.18, Math.max(0, rebound) * 0.012);
+    this.fallPivot.quaternion.setFromAxisAngle(FALL_AXIS, -angle * fallSign);
+    this._applyHingePosition(eased * D * 0.18, Math.max(0, rebound) * 0.012, fallSign);
     this.yawGroup.rotation.y = yaw + rebound * 0.018;
     this._applyVisualCompression(compression);
   }
@@ -386,11 +386,13 @@ export class DominoPiece {
   }
 
   /** Keep hinge at the local back bottom edge; optional back-slide/lift during contact settle. */
-  _applyHingePosition(slideBack = 0, liftY = 0) {
-    const slideX = LOCAL_BACK.x * slideBack;
-    const slideZ = LOCAL_BACK.z * slideBack;
-    this.fallPivot.position.set(BACK_HINGE_X + slideX, liftY, BACK_HINGE_Z + slideZ);
-    this.yawGroup.position.set(-BACK_HINGE_X, H / 2, -BACK_HINGE_Z);
+  _applyHingePosition(slideBack = 0, liftY = 0, fallSign = 1) {
+    const hingeX = LOCAL_BACK.x * (D / 2) * fallSign;
+    const hingeZ = LOCAL_BACK.z * (D / 2) * fallSign;
+    const slideX = LOCAL_BACK.x * slideBack * fallSign;
+    const slideZ = LOCAL_BACK.z * slideBack * fallSign;
+    this.fallPivot.position.set(hingeX + slideX, liftY, hingeZ + slideZ);
+    this.yawGroup.position.set(-hingeX, H / 2, -hingeZ);
     this.visual.position.set(0, 0, 0);
   }
 

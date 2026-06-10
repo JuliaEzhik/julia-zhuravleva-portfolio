@@ -39,7 +39,11 @@ export const CONFIG = {
     spacing: 0.72,
     /** Tighter row for phone screens with fewer dominoes */
     mobileSpacing: 0.66,
-    scale: { desktop: 1, tablet: 0.92, mobile: 0.78 },
+    mobileLayout: 'vertical-zigzag',
+    mobileVerticalSpacing: 0.36,
+    mobileVerticalCenterY: 0.8,
+    mobileZigzagOffset: 0.2,
+    scale: { desktop: 1, tablet: 0.92, mobile: 0.68 },
     /** Per-domino yaw, so the faces stay visible while side/depth still reads clearly */
     yawDeg: 64,
     /** Row root Y — keeps dominoes grounded in the lower foreground band. */
@@ -50,8 +54,8 @@ export const CONFIG = {
   camera: {
     desktop: { x: 0.86, y: 1.76, z: 5.85, lookY: 0.88 },
     tablet: { x: 0.68, y: 1.72, z: 6.05, lookY: 0.84 },
-    mobile: { x: 0.38, y: 1.86, z: 6.3, lookY: 0.98 },
-    fov: { desktop: 42, tablet: 45, mobile: 48 },
+    mobile: { x: 0.28, y: 1.8, z: 6.55, lookY: 1.12 },
+    fov: { desktop: 42, tablet: 45, mobile: 50 },
   },
 
   /** Animation timing (seconds) */
@@ -87,7 +91,7 @@ export const CONFIG = {
       x: -1.42,
       y: 1.82,
       z: 0,
-      mobile: { x: -1.24, y: 1.98, scale: 0.86 },
+      mobile: { x: -1.18, y: 2.62, scale: 0.72 },
     },
     canvas: {
       width: 1024,

@@ -160,33 +160,78 @@ export class DominoScene {
   }
 
   _getDominoSpacing(width = window.innerWidth) {
+    if (this.getDominoLayoutMode(width) === 'vertical-zigzag') {
+      return CONFIG.domino.mobileVerticalSpacing;
+    }
+
     return this._getViewportTier(width) === 'mobile'
       ? CONFIG.domino.mobileSpacing
       : CONFIG.domino.spacing;
   }
 
-  _dominoLayoutKey(width = window.innerWidth) {
-    return `${this._getDominoCount(width)}:${this._getDominoSpacing(width)}`;
+  getDominoLayoutMode(width = window.innerWidth) {
+    return this._getViewportTier(width) === 'mobile'
+      ? CONFIG.domino.mobileLayout ?? 'row'
+      : 'row';
   }
 
-  _initDominoes(count = this._getDominoCount(), spacing = this._getDominoSpacing()) {
-    const totalDepth = (count - 1) * spacing;
-    /** Index 0 starts at local +Z; view rotation maps the chain left-to-right. */
-    const startZ = totalDepth / 2;
+  _dominoLayoutKey(width = window.innerWidth) {
+    return [
+      this.getDominoLayoutMode(width),
+      this._getDominoCount(width),
+      this._getDominoSpacing(width),
+    ].join(':');
+  }
+
+  _initDominoes(count = this._getDominoCount()) {
     const scale = this.getDominoScale();
-    const rowY = this._dominoRowY(scale);
 
     for (let i = 0; i < count; i++) {
       const palette = DOMINO_COLORS[i % DOMINO_COLORS.length];
       const isLast = i === count - 1;
       const piece = new DominoPiece(i, palette, isLast);
       piece.setEnvironmentMap(this._envMap);
-      piece.root.position.set(0, rowY, startZ - i * spacing);
+      piece.root.scale.setScalar(scale);
       piece.addTo(this.compositionPivot);
       this.dominoes.push(piece);
     }
 
-    this._currentDominoLayoutKey = `${count}:${spacing}`;
+    this._positionDominoes(window.innerWidth);
+    this._currentDominoLayoutKey = this._dominoLayoutKey(window.innerWidth);
+  }
+
+  _positionDominoes(width = window.innerWidth) {
+    const spacing = this._getDominoSpacing(width);
+    const scale = this.getDominoScale(width);
+    const layoutMode = this.getDominoLayoutMode(width);
+
+    if (layoutMode === 'vertical-zigzag') {
+      const { mobileVerticalCenterY, mobileZigzagOffset } = CONFIG.domino;
+      const count = this.dominoes.length;
+      const startY = mobileVerticalCenterY + ((count - 1) * spacing) / 2;
+
+      this.dominoes.forEach((piece, index) => {
+        const screenLeftSign = index % 2 === 0 ? 1 : -1;
+        const taper = 0.78 + (index / Math.max(1, count - 1)) * 0.32;
+        piece.root.scale.setScalar(scale);
+        piece.root.position.set(
+          0,
+          startY - index * spacing,
+          screenLeftSign * mobileZigzagOffset * taper
+        );
+      });
+      return;
+    }
+
+    const totalDepth = (this.dominoes.length - 1) * spacing;
+    /** Index 0 starts at local +Z; view rotation maps the chain left-to-right. */
+    const startZ = totalDepth / 2;
+    const rowY = this._dominoRowY(scale);
+
+    this.dominoes.forEach((piece, index) => {
+      piece.root.scale.setScalar(scale);
+      piece.root.position.set(0, rowY, startZ - index * spacing);
+    });
   }
 
   _rebuildDominoesForWidth(width) {
@@ -197,7 +242,7 @@ export class DominoScene {
       piece.root.removeFromParent();
     });
     this.dominoes = [];
-    this._initDominoes(this._getDominoCount(width), this._getDominoSpacing(width));
+    this._initDominoes(this._getDominoCount(width));
     return true;
   }
 
@@ -357,11 +402,7 @@ export class DominoScene {
     const didRebuildRow = this._rebuildDominoesForWidth(w);
     const tier = this._getViewportTier(w);
     const scale = this.getDominoScale(w);
-    const rowY = this._dominoRowY(scale);
-    this.dominoes.forEach((d) => {
-      d.root.scale.setScalar(scale);
-      d.root.position.y = rowY;
-    });
+    this._positionDominoes(w);
 
     if (this.titlePlane) {
       const { plane } = CONFIG.title;

@@ -160,6 +160,15 @@ export class AnimationController {
     return index + 1 === lastIndex ? this.lastFallStart : this.fallStarts[index + 1];
   }
 
+  _isVerticalZigzagLayout() {
+    return this.scene.getDominoLayoutMode?.() === 'vertical-zigzag';
+  }
+
+  _fallSignForIndex(index) {
+    if (!this._isVerticalZigzagLayout()) return 1;
+    return index % 2 === 0 ? -1 : 1;
+  }
+
   _applyPreImpactResponse(lastIndex) {
     for (let i = 1; i <= lastIndex; i++) {
       const start = i === lastIndex ? this.lastFallStart : this.fallStarts[i];
@@ -167,6 +176,7 @@ export class AnimationController {
 
       const pulse = this._contactPulse(i, 0.18);
       this.dominoes[i].setFallAngle(PRE_IMPACT_LEAN * pulse, {
+        fallSign: this._fallSignForIndex(i),
         wobble: Math.sin(pulse * Math.PI) * 0.01,
         yawWobble: pulse * 0.006,
         compression: pulse * 0.72,
@@ -190,10 +200,11 @@ export class AnimationController {
     this.state = 'complete';
     this.dominoes.forEach((d, i) => {
       d.setImpactHighlight(0);
+      const fallSign = this._fallSignForIndex(i);
       if (i < this.dominoes.length - 1) {
-        d.setFallAngle(REST_ANGLE, { slideBack: STACK_SETTLE_SLIDE });
+        d.setFallAngle(REST_ANGLE, { fallSign, slideBack: STACK_SETTLE_SLIDE });
       } else {
-        d.setLastDominoPose(1);
+        d.setLastDominoPose(1, { fallSign });
       }
     });
     this.scene.clearCameraShake();
@@ -242,6 +253,11 @@ export class AnimationController {
     const lastIndex = this.dominoes.length - 1;
 
     this._applyPreImpactResponse(lastIndex);
+
+    if (this._isVerticalZigzagLayout()) {
+      this._updateVerticalZigzag(lastIndex, lastFallDuration, dt);
+      return;
+    }
 
     for (let i = 0; i < lastIndex; i++) {
       const start = this.fallStarts[i];
@@ -298,6 +314,79 @@ export class AnimationController {
 
       if (localT >= 1 && !this._completeFired) {
         this.dominoes[lastIndex].setLastDominoPose(1);
+        this.state = 'complete';
+        this.scene.clearCameraShake();
+        this._completeFired = true;
+        this._titleRevealElapsed = 0;
+        this.onComplete();
+        this._updateTitleReveal(dt);
+      }
+    }
+  }
+
+  _updateVerticalZigzag(lastIndex, lastFallDuration, dt) {
+    for (let i = 0; i < lastIndex; i++) {
+      const start = this.fallStarts[i];
+      if (this.elapsed < start) continue;
+
+      const profile = this._profile(i);
+      const localT = (this.elapsed - start) / profile.duration;
+      const motion = this._fallMotion(localT, i);
+      const nextStart = this._nextStartTime(i, lastIndex);
+      motion.fallSign = this._fallSignForIndex(i);
+
+      if (this.contactFired[i] && this.elapsed < nextStart) {
+        motion.angle = Math.min(motion.angle, profile.contactAngle + CONTACT_HOLD_ALLOWANCE);
+        motion.compression = Math.max(motion.compression, this._contactPulse(i, 0.18) * 0.8);
+      }
+
+      this.dominoes[i].setFallAngle(motion.angle, motion);
+      this.dominoes[i].setImpactHighlight(motion.highlight);
+
+      if (localT >= 0.54 && !this.contactFired[i]) {
+        this.contactFired[i] = true;
+        this.contactTimes[i] = this.elapsed;
+        this.contactTimes[i + 1] = this.elapsed;
+        if (i + 1 === lastIndex) {
+          this.lastFallStart = this.elapsed + profile.contactDelay + 0.025;
+        } else {
+          this.fallStarts[i + 1] = this.elapsed + profile.contactDelay + 0.025;
+        }
+      }
+    }
+
+    if (this.lastFallStart !== Infinity && this.elapsed >= this.lastFallStart) {
+      const localT = (this.elapsed - this.lastFallStart) / lastFallDuration;
+      const t = Math.min(localT, 1);
+      this.dominoes[lastIndex].setLastDominoPose(t, {
+        fallSign: this._fallSignForIndex(lastIndex),
+      });
+      this.dominoes[lastIndex].setImpactHighlight(this._contactPulse(lastIndex, 0.26));
+
+      if (t >= 0.68 && !this._impactFired) {
+        this._impactFired = true;
+        this.contactTimes[lastIndex] = this.elapsed;
+        this.shakeActive = true;
+        this.shakeElapsed = 0;
+        this.onImpact();
+      }
+
+      if (this.shakeActive) {
+        this.shakeElapsed += dt;
+        const { shakeIntensity, shakeDuration } = CONFIG.impact;
+        const fade = 1 - this.shakeElapsed / shakeDuration;
+        if (fade > 0) {
+          this.scene.applyCameraShake(shakeIntensity * fade, this.shakeElapsed);
+        } else {
+          this.shakeActive = false;
+          this.scene.clearCameraShake();
+        }
+      }
+
+      if (localT >= 1 && !this._completeFired) {
+        this.dominoes[lastIndex].setLastDominoPose(1, {
+          fallSign: this._fallSignForIndex(lastIndex),
+        });
         this.state = 'complete';
         this.scene.clearCameraShake();
         this._completeFired = true;
