@@ -27,6 +27,16 @@ initI18n();
 
   const scene = new DominoScene(canvasHost);
 
+  function vibrateOnFinalImpact() {
+    if (typeof navigator.vibrate !== 'function') return;
+
+    try {
+      navigator.vibrate([18, 20, 28]);
+    } catch {
+      // Some mobile browsers expose the API but block it; the animation should continue silently.
+    }
+  }
+
   function syncHeroSubtitle() {
     const subtitle = t('hero.subtitle');
     ui.setSubtitle(subtitle);
@@ -37,6 +47,7 @@ initI18n();
   onLanguageChange(syncHeroSubtitle);
 
   const animation = new AnimationController(scene, {
+    onImpact: vibrateOnFinalImpact,
     onComplete: () => {
       ui.showReveal(reducedMotion);
       ui.setReplayVisible(true);

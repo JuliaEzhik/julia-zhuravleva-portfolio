@@ -17,6 +17,7 @@ export class DominoScene {
     this._dominoLayoutListeners = new Set();
     this._baseCameraPos = new THREE.Vector3();
     this._shakeOffset = new THREE.Vector3();
+    this._leanRendering = this._prefersLeanRendering();
 
     this._initRenderer();
     this._initScene();
@@ -34,18 +35,33 @@ export class DominoScene {
 
   _initRenderer() {
     this.renderer = new THREE.WebGLRenderer({
-      antialias: true,
+      antialias: !this._leanRendering,
       alpha: true,
       powerPreference: 'high-performance',
     });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.03;
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.enabled = !this._leanRendering;
+    this.renderer.shadowMap.type = this._leanRendering ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
     this.renderer.setClearColor(CONFIG.scene.background, 0);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setPixelRatio(this._getPixelRatio());
     this.host.appendChild(this.renderer.domElement);
+  }
+
+  _prefersLeanRendering() {
+    const ua = navigator.userAgent;
+    const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isSafari = /^((?!chrome|android|crios|fxios).)*safari/i.test(ua);
+    const isMobileWidth = window.innerWidth < 640;
+    const isCoarsePointer = window.matchMedia?.('(pointer: coarse)').matches ?? false;
+
+    return (isIOS && isSafari) || (isMobileWidth && isCoarsePointer);
+  }
+
+  _getPixelRatio() {
+    const cap = this._leanRendering ? 1.25 : 1.75;
+    return Math.min(window.devicePixelRatio || 1, cap);
   }
 
   _initScene() {
@@ -94,8 +110,8 @@ export class DominoScene {
 
     this.keyLight = new THREE.DirectionalLight(0xfff2df, 1.28);
     this.keyLight.position.set(-1.9, 5.7, 4.9);
-    this.keyLight.castShadow = true;
-    this.keyLight.shadow.mapSize.set(2048, 2048);
+    this.keyLight.castShadow = !this._leanRendering;
+    this.keyLight.shadow.mapSize.set(this._leanRendering ? 512 : 2048, this._leanRendering ? 512 : 2048);
     this.keyLight.shadow.camera.near = 0.5;
     this.keyLight.shadow.camera.far = 18;
     this.keyLight.shadow.camera.left = -4;
@@ -178,6 +194,7 @@ export class DominoScene {
     this.table.position.y = table.y ?? 0;
 
     if (this.tableEdge) {
+      this.tableEdge.visible = tier !== 'mobile';
       this.tableEdge.scale.set(table.width, 1, table.depth);
       this.tableEdge.position.set(0, (table.y ?? 0) - 0.055, 0);
     }
@@ -241,12 +258,14 @@ export class DominoScene {
 
       this.dominoes.forEach((piece, index) => {
         const screenLeftSign = index % 2 === 0 ? 1 : -1;
-        const taper = 0.78 + (index / Math.max(1, count - 1)) * 0.32;
+        const progress = index / Math.max(1, count - 1);
+        const taper = 0.42 + progress * 1.34;
+        const centerDrift = (progress - 0.5) * 0.04;
         piece.root.scale.setScalar(scale);
         piece.root.position.set(
           0,
           startY - index * spacing,
-          screenLeftSign * mobileZigzagOffset * taper
+          centerDrift + screenLeftSign * mobileZigzagOffset * taper
         );
       });
       return;
@@ -425,6 +444,7 @@ export class DominoScene {
 
   _onResize() {
     const { clientWidth: w, clientHeight: h } = this.host;
+    this.renderer.setPixelRatio(this._getPixelRatio());
     this.renderer.setSize(w, h, false);
     this._applyCameraLayout(w, h);
 

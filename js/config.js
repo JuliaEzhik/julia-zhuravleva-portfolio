@@ -27,7 +27,7 @@ export const DOMINO_COLORS = [
 export const CONFIG = {
   dominoCount: {
     desktop: DOMINO_COLORS.length,
-    mobile: 5,
+    mobile: 7,
   },
 
   /** Domino dimensions (world units) */
@@ -39,11 +39,11 @@ export const CONFIG = {
     spacing: 0.72,
     /** Tighter row for phone screens with fewer dominoes */
     mobileSpacing: 0.62,
-    mobileLayout: 'row',
-    mobileVerticalSpacing: 0.48,
-    mobileVerticalCenterY: 0.92,
-    mobileZigzagOffset: 0.28,
-    scale: { desktop: 1, tablet: 0.92, mobile: 0.86 },
+    mobileLayout: 'vertical-zigzag',
+    mobileVerticalSpacing: 0.36,
+    mobileVerticalCenterY: 1.06,
+    mobileZigzagOffset: 0.2,
+    scale: { desktop: 1, tablet: 0.92, mobile: 0.76 },
     /** Per-domino yaw, so the faces stay visible while side/depth still reads clearly */
     yawDeg: 64,
     /** Row root Y — keeps dominoes grounded in the lower foreground band. */
@@ -54,7 +54,7 @@ export const CONFIG = {
   camera: {
     desktop: { x: 0.86, y: 1.76, z: 5.85, lookY: 0.88 },
     tablet: { x: 0.68, y: 1.72, z: 6.05, lookY: 0.84 },
-    mobile: { x: 0.26, y: 1.54, z: 5.35, lookY: 0.84 },
+    mobile: { x: 0.22, y: 1.5, z: 5.55, lookY: 0.96 },
     fov: { desktop: 42, tablet: 45, mobile: 45 },
   },
 
@@ -81,7 +81,7 @@ export const CONFIG = {
     table: {
       desktop: { width: 14, depth: 8, y: 0 },
       tablet: { width: 14, depth: 8, y: 0 },
-      mobile: { width: 8.6, depth: 7.2, y: 0 },
+      mobile: { width: 7.2, depth: 6.1, y: 0 },
     },
     /** Rotates the whole domino/title composition around its center pivot */
     viewRotationDeg: -90,
