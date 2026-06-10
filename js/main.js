@@ -168,6 +168,7 @@ initI18n();
   const state = {
     sections: [],
     points: [],
+    routeSamples: [],
     milestones: [],
     pathLength: 0,
     progress: 0,
@@ -206,6 +207,14 @@ initI18n();
     const { width } = getViewportMetrics();
 
     return clamp(width * 0.11, 26, 42);
+  }
+
+  function getScrollX() {
+    return window.scrollX || window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft || 0;
+  }
+
+  function getScrollY() {
+    return window.scrollY || window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
   }
 
   function getSafeViewportBounds(margin = 24) {
@@ -282,25 +291,28 @@ initI18n();
   function getAnchorPoint(anchor, section) {
     const rect = anchor.getBoundingClientRect();
     const sectionRect = section.getBoundingClientRect();
+    const viewport = getViewportMetrics();
+    const scrollX = getScrollX();
+    const scrollY = getScrollY();
     const isHiddenAnchor = rect.width === 0 && rect.height === 0;
     const anchorTop = isHiddenAnchor ? sectionRect.top : rect.top;
     const anchorHeight = isHiddenAnchor ? Math.min(sectionRect.height * 0.16, 120) : rect.height;
 
     if (isMobileFuseLayout()) {
       return {
-        x: window.scrollX + getMobileRailViewportX(),
-        y: anchorTop + window.scrollY + anchorHeight * 0.52,
+        x: scrollX + viewport.offsetLeft + getMobileRailViewportX(),
+        y: anchorTop + scrollY + anchorHeight * 0.52,
       };
     }
 
-    const railOffset = window.innerWidth < 760 ? 18 : 38;
-    const minX = window.scrollX + 18;
-    const maxX = window.scrollX + document.documentElement.clientWidth - 18;
-    const preferredX = rect.left + window.scrollX - railOffset;
+    const railOffset = viewport.width < 760 ? 18 : 38;
+    const minX = scrollX + viewport.offsetLeft + 18;
+    const maxX = scrollX + viewport.offsetLeft + Math.max(viewport.width - 18, 18);
+    const preferredX = rect.left + scrollX - railOffset;
 
     return {
       x: clamp(preferredX, minX, maxX),
-      y: anchorTop + window.scrollY + anchorHeight * 0.52,
+      y: anchorTop + scrollY + anchorHeight * 0.52,
     };
   }
 
@@ -353,6 +365,21 @@ initI18n();
       previousDistance = findLengthForPoint(point, previousDistance);
       return previousDistance;
     });
+  }
+
+  function buildRouteSamples() {
+    const sampleCount = Math.round(clamp(state.pathLength / 28, 140, 560));
+
+    state.routeSamples = Array.from({ length: sampleCount + 1 }, (_, index) => {
+      const distance = state.pathLength * (index / sampleCount);
+      const point = ropePath.getPointAtLength(distance);
+
+      return {
+        distance,
+        x: point.x,
+        y: point.y,
+      };
+    }).filter((sample) => Number.isFinite(sample.x) && Number.isFinite(sample.y));
   }
 
   function setBurnProgress(sparkDistance) {
@@ -413,6 +440,7 @@ initI18n();
       return;
     }
 
+    buildRouteSamples();
     state.milestones = calculateMilestones(state.points);
     state.isActive = true;
     overlay.hidden = false;
@@ -424,11 +452,56 @@ initI18n();
     const doc = document.documentElement;
     const body = document.body;
     const scrollHeight = Math.max(doc.scrollHeight, body.scrollHeight);
-    const viewportHeight = window.innerHeight || doc.clientHeight || 1;
+    const viewportHeight = getViewportMetrics().height || window.innerHeight || doc.clientHeight || 1;
     const maxScroll = Math.max(scrollHeight - viewportHeight, 1);
-    const scrollTop = window.scrollY || window.pageYOffset || doc.scrollTop || body.scrollTop || 0;
+    const scrollTop = getScrollY();
 
     return clamp(scrollTop / maxScroll, 0, 1);
+  }
+
+  function getRouteDistanceForViewport(progress) {
+    if (state.routeSamples.length < 2) {
+      return clamp(progress * state.pathLength, 0, state.pathLength);
+    }
+
+    const viewport = getViewportMetrics();
+    const firstSample = state.routeSamples[0];
+    const lastSample = state.routeSamples[state.routeSamples.length - 1];
+    const visibleTop = getScrollY() + viewport.offsetTop;
+    const targetY = clamp(
+      visibleTop + viewport.height * 0.46,
+      Math.min(firstSample.y, lastSample.y),
+      Math.max(firstSample.y, lastSample.y)
+    );
+
+    if (targetY <= firstSample.y) return firstSample.distance;
+    if (targetY >= lastSample.y) return lastSample.distance;
+
+    let low = 0;
+    let high = state.routeSamples.length - 1;
+
+    while (high - low > 1) {
+      const mid = Math.floor((low + high) / 2);
+
+      if (state.routeSamples[mid].y < targetY) {
+        low = mid;
+      } else {
+        high = mid;
+      }
+    }
+
+    const start = state.routeSamples[low];
+    const end = state.routeSamples[high];
+    const segmentHeight = end.y - start.y;
+    const segmentProgress = Math.abs(segmentHeight) > 0.001
+      ? clamp((targetY - start.y) / segmentHeight, 0, 1)
+      : 0;
+
+    return clamp(
+      start.distance + (end.distance - start.distance) * segmentProgress,
+      0,
+      state.pathLength
+    );
   }
 
   function getFallbackSparkPoint(progress) {
@@ -446,24 +519,11 @@ initI18n();
       };
     }
 
-    const viewportWidth = document.documentElement.clientWidth || window.innerWidth || 1;
-    const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 1;
+    const viewport = getViewportMetrics();
 
     return {
-      x: window.scrollX + viewportWidth * (0.18 + 0.64 * progress),
-      y: window.scrollY + viewportHeight * (0.2 + 0.6 * progress),
-    };
-  }
-
-  function getFallbackSparkViewportPoint(progress) {
-    const bounds = getSafeViewportBounds();
-    const travelWidth = Math.max(bounds.maxX - bounds.minX, 1);
-    const travelHeight = Math.max(bounds.maxY - bounds.minY, 1);
-    const weave = 0.5 + Math.sin(progress * Math.PI * 4) * 0.24;
-
-    return {
-      x: bounds.minX + travelWidth * weave,
-      y: bounds.minY + travelHeight * clamp(progress, 0, 1),
+      x: getScrollX() + viewport.offsetLeft + viewport.width * (0.18 + 0.64 * progress),
+      y: getScrollY() + viewport.offsetTop + viewport.height * (0.2 + 0.6 * progress),
     };
   }
 
@@ -474,8 +534,8 @@ initI18n();
     const bounds = getSafeViewportBounds();
 
     const viewportPoint = {
-      x: sourcePoint.x - window.scrollX,
-      y: sourcePoint.y - window.scrollY,
+      x: sourcePoint.x - getScrollX(),
+      y: sourcePoint.y - getScrollY(),
     };
 
     if (isMobileFuseLayout()) {
@@ -485,17 +545,10 @@ initI18n();
       };
     }
 
-    const isVisible =
-      viewportPoint.x >= bounds.minX &&
-      viewportPoint.x <= bounds.maxX &&
-      viewportPoint.y >= bounds.minY &&
-      viewportPoint.y <= bounds.maxY;
-
-    if (!isVisible) {
-      return getFallbackSparkViewportPoint(progress);
-    }
-
-    return viewportPoint;
+    return {
+      x: clamp(viewportPoint.x, bounds.minX, bounds.maxX),
+      y: clamp(viewportPoint.y, bounds.minY, bounds.maxY),
+    };
   }
 
   function setIgnitedSections(sparkDistance) {
@@ -558,7 +611,7 @@ initI18n();
     }
 
     const progress = getScrollProgress();
-    const sparkDistance = clamp(progress * state.pathLength, 0, state.pathLength);
+    const sparkDistance = getRouteDistanceForViewport(progress);
     let point = ropePath.getPointAtLength(sparkDistance);
     let nextPoint = ropePath.getPointAtLength(clamp(sparkDistance + 2, 0, state.pathLength));
 
