@@ -165,6 +165,8 @@ initI18n();
     points: [],
     milestones: [],
     pathLength: 0,
+    scrollStart: 0,
+    scrollEnd: 1,
     progress: 0,
     lastParticleAt: 0,
     isScheduled: false,
@@ -245,12 +247,12 @@ initI18n();
     if (mobileFuseQuery.matches) {
       const sectionRect = section.getBoundingClientRect();
       const railX = window.scrollX + clamp(document.documentElement.clientWidth * 0.055, 18, 26);
-      const sectionY = sectionRect.top + window.scrollY + Math.min(sectionRect.height * 0.18, 82);
-      const anchorY = rect.top + window.scrollY + rect.height * 0.52;
+      const sectionY = sectionRect.top + window.scrollY + Math.min(sectionRect.height * 0.2, 96);
+      const anchorY = rect.top + window.scrollY + rect.height * 0.5;
 
       return {
         x: railX,
-        y: Math.max(sectionY, anchorY),
+        y: anchor === section ? sectionY : anchorY,
       };
     }
 
@@ -318,11 +320,32 @@ initI18n();
     });
   }
 
-  function layoutFuse() {
+  function getMeasuredDocumentHeight() {
     const doc = document.documentElement;
     const body = document.body;
-    const docWidth = Math.max(doc.clientWidth, doc.scrollWidth, body.scrollWidth);
-    const docHeight = Math.max(doc.scrollHeight, body.scrollHeight, window.innerHeight);
+    const contentBottom = Array.from(body.children).reduce((bottom, child) => {
+      if (child === overlay || !(child instanceof HTMLElement)) return bottom;
+
+      const rect = child.getBoundingClientRect();
+      return Math.max(bottom, rect.bottom + window.scrollY);
+    }, 0);
+
+    return Math.max(contentBottom, doc.clientHeight, window.innerHeight);
+  }
+
+  function setScrollRange(docHeight) {
+    const scrollMax = Math.max(0, docHeight - window.innerHeight);
+
+    state.scrollStart = 0;
+    state.scrollEnd = scrollMax > 0 ? scrollMax : 1;
+  }
+
+  function layoutFuse() {
+    const doc = document.documentElement;
+    overlay.style.setProperty('--fuse-doc-height', '0px');
+
+    const docWidth = Math.max(doc.clientWidth, window.innerWidth);
+    const docHeight = getMeasuredDocumentHeight();
 
     sections = getFuseSections();
     state.isLayoutScheduled = false;
@@ -362,20 +385,13 @@ initI18n();
       path.style.strokeDashoffset = '';
     });
 
+    setScrollRange(docHeight);
     state.milestones = calculateMilestones(state.points);
     updateFuse();
   }
 
   function getScrollProgress() {
-    const firstPoint = state.points[0];
-    const lastPoint = state.points[state.points.length - 1];
-
-    if (!firstPoint || !lastPoint || firstPoint.y === lastPoint.y) {
-      return 0;
-    }
-
-    const triggerY = window.scrollY + window.innerHeight * 0.58;
-    return clamp((triggerY - firstPoint.y) / (lastPoint.y - firstPoint.y), 0, 1);
+    return clamp((window.scrollY - state.scrollStart) / (state.scrollEnd - state.scrollStart), 0, 1);
   }
 
   function setIgnitedSections(progress) {
@@ -491,11 +507,16 @@ initI18n();
   }
 
   document.querySelectorAll('img').forEach((image) => {
+    if (typeof image.decode === 'function') {
+      image.decode().then(scheduleLayout).catch(() => {});
+    }
+
     if (image.complete) return;
     image.addEventListener('load', scheduleLayout, { once: true });
     image.addEventListener('error', scheduleLayout, { once: true });
   });
 
+  onLanguageChange(scheduleLayout);
   window.addEventListener('load', scheduleLayout, { once: true });
 })();
 
