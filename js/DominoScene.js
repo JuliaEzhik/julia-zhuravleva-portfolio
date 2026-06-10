@@ -190,11 +190,14 @@ export class DominoScene {
     const table = CONFIG.scene.table?.[tier] ?? CONFIG.scene.table?.desktop;
     if (!table || !this.table) return;
 
+    const isMobile = tier === 'mobile';
+    this.table.visible = !isMobile;
+    this.table.receiveShadow = !isMobile;
     this.table.scale.set(table.width, table.depth, 1);
     this.table.position.y = table.y ?? 0;
 
     if (this.tableEdge) {
-      this.tableEdge.visible = tier !== 'mobile';
+      this.tableEdge.visible = !isMobile;
       this.tableEdge.scale.set(table.width, 1, table.depth);
       this.tableEdge.position.set(0, (table.y ?? 0) - 0.055, 0);
     }

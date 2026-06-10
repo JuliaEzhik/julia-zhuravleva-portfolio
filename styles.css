@@ -2319,9 +2319,9 @@ section[id] {
     padding: clamp(5.15rem, 15svh, 5.9rem) 0.82rem 0.86rem;
     border-radius: 22px;
     background:
-      radial-gradient(circle at 50% 12%, rgba(255, 122, 51, 0.2), transparent 19rem),
-      radial-gradient(circle at 82% 62%, rgba(255, 154, 85, 0.1), transparent 20rem),
-      linear-gradient(180deg, rgba(16, 18, 24, 0.84), rgba(5, 6, 10, 0.86));
+      radial-gradient(circle at 50% 9%, rgba(255, 122, 51, 0.24), transparent 18rem),
+      radial-gradient(circle at 50% 56%, rgba(255, 154, 85, 0.13), transparent 24rem),
+      linear-gradient(180deg, rgba(20, 18, 21, 0.74), rgba(12, 10, 14, 0.76));
   }
 
   .hero::after {
@@ -2357,25 +2357,29 @@ section[id] {
   }
 
   .stage {
-    min-height: clamp(30rem, 72svh, 38rem);
+    min-height: clamp(31.5rem, 73svh, 39rem);
     aspect-ratio: auto;
     max-height: none;
     border-radius: 22px;
+    border-color: rgba(255, 184, 126, 0.16);
     background:
-      linear-gradient(145deg, rgba(255, 255, 255, 0.075), transparent 30%),
-      radial-gradient(ellipse at 50% 34%, rgba(255, 122, 51, 0.2), transparent 20rem),
-      radial-gradient(ellipse at 50% 88%, rgba(235, 71, 16, 0.18), transparent 18rem),
-      linear-gradient(180deg, rgba(20, 22, 28, 0.82), rgba(16, 12, 13, 0.82));
+      radial-gradient(ellipse at 50% 16%, rgba(255, 122, 51, 0.2), transparent 17rem),
+      radial-gradient(ellipse at 50% 62%, rgba(255, 154, 85, 0.12), transparent 19rem),
+      linear-gradient(180deg, rgba(255, 244, 231, 0.055), rgba(255, 122, 51, 0.045));
     box-shadow:
       0 1px 0 rgba(255, 255, 255, 0.08) inset,
-      0 18px 44px rgba(0, 0, 0, 0.28),
-      0 0 48px rgba(235, 71, 16, 0.14);
+      0 16px 42px rgba(0, 0, 0, 0.16),
+      0 0 54px rgba(235, 71, 16, 0.16);
   }
 
   .stage::before {
     background-size: 34px 34px;
-    opacity: 0.68;
-    mask-image: radial-gradient(circle at 50% 42%, rgba(0, 0, 0, 0.42), transparent 68%);
+    opacity: 0.52;
+    mask-image: radial-gradient(circle at 50% 48%, rgba(0, 0, 0, 0.4), transparent 70%);
+  }
+
+  .stage::after {
+    opacity: 0.28;
   }
 
   .availability-pill {
@@ -2385,6 +2389,7 @@ section[id] {
   .replay-btn {
     align-self: center;
     padding: 0.58rem 1rem;
+    background: rgba(255, 244, 231, 0.065);
     font-size: 0.82rem;
   }
 
@@ -2512,6 +2517,6 @@ section[id] {
   }
 
   .stage {
-    min-height: clamp(29rem, 70svh, 36rem);
+    min-height: clamp(30.5rem, 71svh, 37rem);
   }
 }

@@ -41,7 +41,7 @@ export const CONFIG = {
     mobileSpacing: 0.62,
     mobileLayout: 'vertical-zigzag',
     mobileVerticalSpacing: 0.36,
-    mobileVerticalCenterY: 1.06,
+    mobileVerticalCenterY: 0.42,
     mobileZigzagOffset: 0.2,
     scale: { desktop: 1, tablet: 0.92, mobile: 0.76 },
     /** Per-domino yaw, so the faces stay visible while side/depth still reads clearly */
@@ -54,8 +54,8 @@ export const CONFIG = {
   camera: {
     desktop: { x: 0.86, y: 1.76, z: 5.85, lookY: 0.88 },
     tablet: { x: 0.68, y: 1.72, z: 6.05, lookY: 0.84 },
-    mobile: { x: 0.22, y: 1.5, z: 5.55, lookY: 0.96 },
-    fov: { desktop: 42, tablet: 45, mobile: 45 },
+    mobile: { x: 0.18, y: 1.76, z: 6.25, lookY: 1.14 },
+    fov: { desktop: 42, tablet: 45, mobile: 47 },
   },
 
   /** Animation timing (seconds) */
@@ -96,7 +96,7 @@ export const CONFIG = {
       x: -1.42,
       y: 1.82,
       z: 0,
-      mobile: { x: -1.04, y: 1.9, scale: 0.96 },
+      mobile: { x: -0.88, y: 2.72, scale: 0.78 },
     },
     canvas: {
       width: 1024,
