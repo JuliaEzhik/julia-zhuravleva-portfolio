@@ -66,13 +66,43 @@
   </header>
 
   <div id="fuse-overlay" class="fuse-overlay" aria-hidden="true">
-    <div id="fuse-rail" class="fuse-rail">
-      <span id="fuse-burn" class="fuse-burn"></span>
-      <div id="fuse-spark" class="fuse-spark">
-        <span class="fuse-spark__core"></span>
-        <span class="fuse-spark__flame"></span>
-        <span class="fuse-spark__smoke"></span>
-      </div>
+    <svg class="fuse-overlay__svg" focusable="false">
+      <defs>
+        <filter id="fuse-glow" x="-40%" y="-40%" width="180%" height="180%">
+          <feGaussianBlur stdDeviation="6" result="blur"></feGaussianBlur>
+          <feColorMatrix
+            in="blur"
+            type="matrix"
+            values="1 0 0 0 1
+                    0 0.45 0 0 0.22
+                    0 0 0.08 0 0
+                    0 0 0 0.82 0"
+            result="warmGlow"
+          ></feColorMatrix>
+          <feMerge>
+            <feMergeNode in="warmGlow"></feMergeNode>
+            <feMergeNode in="SourceGraphic"></feMergeNode>
+          </feMerge>
+        </filter>
+        <linearGradient id="fuse-rope-gradient" x1="0%" x2="100%" y1="0%" y2="100%">
+          <stop offset="0%" stop-color="#4a3327"></stop>
+          <stop offset="48%" stop-color="#7a5234"></stop>
+          <stop offset="100%" stop-color="#271a15"></stop>
+        </linearGradient>
+        <linearGradient id="fuse-burn-gradient" x1="0%" x2="100%" y1="0%" y2="100%">
+          <stop offset="0%" stop-color="#120b08"></stop>
+          <stop offset="56%" stop-color="#eb4710"></stop>
+          <stop offset="100%" stop-color="#ffbe73"></stop>
+        </linearGradient>
+      </defs>
+      <path id="fuse-rope" class="fuse-overlay__rope" pathLength="1"></path>
+      <path id="fuse-burned" class="fuse-overlay__burned" pathLength="1"></path>
+      <path id="fuse-ember-trail" class="fuse-overlay__ember-trail" pathLength="1"></path>
+    </svg>
+    <div id="fuse-spark" class="fuse-spark">
+      <span class="fuse-spark__core"></span>
+      <span class="fuse-spark__flame"></span>
+      <span class="fuse-spark__smoke"></span>
     </div>
   </div>
 

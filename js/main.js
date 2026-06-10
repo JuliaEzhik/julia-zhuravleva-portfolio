@@ -133,36 +133,35 @@ initI18n();
 })();
 
 /**
- * Scroll fuse — fixed viewport rail that burns from global scroll progress.
+ * Scroll fuse — draws a decorative fuse between section headings and burns it with scroll.
  */
 (function initScrollFuse() {
   'use strict';
 
   const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
   const overlay = document.getElementById('fuse-overlay');
-  const rail = document.getElementById('fuse-rail');
-  const burn = document.getElementById('fuse-burn');
+  const svg = overlay?.querySelector('.fuse-overlay__svg');
+  const ropePath = document.getElementById('fuse-rope');
+  const burnedPath = document.getElementById('fuse-burned');
+  const emberTrailPath = document.getElementById('fuse-ember-trail');
   const spark = document.getElementById('fuse-spark');
-  let sections = [];
-  let nodes = [];
-  const IGNITION_LEAD = 0.006;
-  const IGNITION_FLASH_MS = 1400;
 
   if (
     !(overlay instanceof HTMLElement) ||
-    !(rail instanceof HTMLElement) ||
-    !(burn instanceof HTMLElement) ||
+    !(svg instanceof SVGSVGElement) ||
+    !(ropePath instanceof SVGPathElement) ||
+    !(burnedPath instanceof SVGPathElement) ||
+    !(emberTrailPath instanceof SVGPathElement) ||
     !(spark instanceof HTMLElement)
   ) {
     return;
   }
 
   const state = {
+    sections: [],
+    points: [],
     milestones: [],
-    scrollMax: 1,
-    railX: 28,
-    railTop: 96,
-    railHeight: 540,
+    pathLength: 0,
     progress: 0,
     lastParticleAt: 0,
     isScheduled: false,
@@ -174,93 +173,18 @@ initI18n();
     return Math.min(Math.max(value, min), max);
   }
 
-  function igniteSection(section, withFlash = true) {
-    const wasIgnited = section.classList.contains('is-ignited');
-
-    section.classList.add('is-ignited');
-
-    if (!withFlash || wasIgnited) return;
-
-    section.classList.add('is-igniting');
-    window.setTimeout(() => {
-      section.classList.remove('is-igniting');
-    }, IGNITION_FLASH_MS);
-  }
-
   function getFuseSections() {
-    return Array.from(document.querySelectorAll('[data-fuse-section]')).filter(
-      (section) => section instanceof HTMLElement,
-    );
+    return Array.from(document.querySelectorAll('[data-fuse-section]'))
+      .map((section) => ({
+        section,
+        anchor: section.querySelector('[data-fuse-anchor]'),
+      }))
+      .filter(({ section, anchor }) => section instanceof HTMLElement && anchor instanceof HTMLElement);
   }
 
   function igniteAll() {
-    getFuseSections().forEach((section) => {
-      igniteSection(section, false);
-    });
-  }
-
-  function setReducedMotionState() {
-    document.documentElement.classList.remove('fuse-ready');
-    overlay.hidden = true;
-    state.isActive = false;
-    igniteAll();
-    window.removeEventListener('scroll', scheduleUpdate);
-    window.removeEventListener('resize', scheduleLayout);
-  }
-
-  function getMeasuredDocumentHeight() {
-    const doc = document.documentElement;
-    const body = document.body;
-
-    return Math.max(
-      body.scrollHeight,
-      body.offsetHeight,
-      doc.clientHeight,
-      doc.scrollHeight,
-      doc.offsetHeight,
-      window.innerHeight,
-    );
-  }
-
-  function getRailMetrics() {
-    const width = document.documentElement.clientWidth || window.innerWidth;
-    const height = window.innerHeight;
-    const isMobile = width <= 639;
-    const railX = isMobile ? clamp(width * 0.055, 17, 22) : clamp(width * 0.045, 28, 56);
-    const railTop = isMobile ? clamp(height * 0.14, 74, 104) : clamp(height * 0.15, 92, 132);
-    const railBottomInset = isMobile ? clamp(height * 0.055, 28, 44) : clamp(height * 0.08, 44, 72);
-    const railBottom = Math.max(railTop + 220, height - railBottomInset);
-
-    return {
-      railX,
-      railTop,
-      railHeight: Math.max(220, railBottom - railTop),
-    };
-  }
-
-  function getScrollProgress() {
-    return clamp(window.scrollY / state.scrollMax, 0, 1);
-  }
-
-  function getSectionThreshold(section, index) {
-    if (index === 0) return 0;
-
-    const docTop = section.getBoundingClientRect().top + window.scrollY;
-    const viewportLead = Math.min(window.innerHeight * 0.34, 240);
-    return clamp((docTop - viewportLead) / state.scrollMax, 0, 1);
-  }
-
-  function createNodes() {
-    nodes.forEach((node) => node.remove());
-    nodes = state.milestones.map((threshold) => {
-      const node = document.createElement('span');
-      const y = state.railTop + state.railHeight * threshold;
-
-      node.className = 'fuse-node';
-      node.style.setProperty('--node-x', `${state.railX}px`);
-      node.style.setProperty('--node-y', `${y}px`);
-      overlay.appendChild(node);
-      return node;
+    getFuseSections().forEach(({ section }) => {
+      section.classList.add('is-ignited');
     });
   }
 
@@ -269,16 +193,87 @@ initI18n();
       elementsReady: true,
       reducedMotion: reducedMotionQuery.matches,
       active: state.isActive,
-      railHeight: Number(state.railHeight.toFixed(2)),
-      scrollMax: Number(state.scrollMax.toFixed(2)),
+      pathLength: Number(state.pathLength.toFixed(2)),
       progress: Number(state.progress.toFixed(4)),
-      sections: sections.length,
+      sections: state.sections.length,
     };
   }
 
+  function setReducedMotionState() {
+    document.documentElement.classList.remove('fuse-ready');
+    overlay.hidden = true;
+    state.isActive = false;
+    igniteAll();
+    writeSelfCheck();
+    window.removeEventListener('scroll', scheduleUpdate);
+    window.removeEventListener('resize', scheduleLayout);
+  }
+
+  function getAnchorPoint(anchor) {
+    const rect = anchor.getBoundingClientRect();
+    const railOffset = window.innerWidth < 760 ? 18 : 38;
+    const minX = window.scrollX + 18;
+    const maxX = window.scrollX + document.documentElement.clientWidth - 18;
+    const preferredX = rect.left + window.scrollX - railOffset;
+
+    return {
+      x: clamp(preferredX, minX, maxX),
+      y: rect.top + window.scrollY + rect.height * 0.52,
+    };
+  }
+
+  function buildFusePath(points) {
+    return points.reduce((path, point, index) => {
+      if (index === 0) {
+        return `M ${point.x.toFixed(1)} ${point.y.toFixed(1)}`;
+      }
+
+      const previous = points[index - 1];
+      const dy = point.y - previous.y;
+      const direction = point.x >= previous.x ? 1 : -1;
+      const curve = clamp(Math.abs(dy) * 0.08, 36, 112) * direction;
+      const cp1x = previous.x + curve;
+      const cp1y = previous.y + dy * 0.32;
+      const cp2x = point.x - curve;
+      const cp2y = point.y - dy * 0.3;
+
+      return `${path} C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${point.x.toFixed(1)} ${point.y.toFixed(1)}`;
+    }, '');
+  }
+
+  function findLengthRatioForPoint(target, startRatio = 0) {
+    const sampleCount = 180;
+    let closestRatio = startRatio;
+    let closestDistance = Number.POSITIVE_INFINITY;
+
+    for (let i = Math.round(startRatio * sampleCount); i <= sampleCount; i += 1) {
+      const ratio = i / sampleCount;
+      const point = ropePath.getPointAtLength(state.pathLength * ratio);
+      const distance = Math.hypot(point.x - target.x, point.y - target.y);
+
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestRatio = ratio;
+      }
+    }
+
+    return closestRatio;
+  }
+
+  function calculateMilestones(points) {
+    let previousRatio = 0;
+
+    return points.map((point, index) => {
+      if (index === 0) return 0;
+
+      previousRatio = findLengthRatioForPoint(point, previousRatio);
+      return previousRatio;
+    });
+  }
+
   function layoutFuse() {
-    sections = getFuseSections();
     state.isLayoutScheduled = false;
+    state.sections = getFuseSections();
 
     if (reducedMotionQuery.matches) {
       state.isActive = false;
@@ -286,7 +281,7 @@ initI18n();
       return;
     }
 
-    if (sections.length < 2) {
+    if (state.sections.length < 2) {
       state.isActive = false;
       overlay.hidden = true;
       document.documentElement.classList.remove('fuse-ready');
@@ -294,32 +289,46 @@ initI18n();
       return;
     }
 
+    const doc = document.documentElement;
+    const body = document.body;
+    const docWidth = Math.max(doc.clientWidth, doc.scrollWidth, body.scrollWidth);
+    const docHeight = Math.max(doc.scrollHeight, body.scrollHeight, window.innerHeight);
+
+    overlay.style.setProperty('--fuse-doc-height', `${docHeight}px`);
+    svg.setAttribute('viewBox', `0 0 ${docWidth} ${docHeight}`);
+    svg.setAttribute('width', String(docWidth));
+    svg.setAttribute('height', String(docHeight));
+
+    state.points = state.sections.map(({ anchor }) => getAnchorPoint(anchor));
+    const pathData = buildFusePath(state.points);
+
+    ropePath.setAttribute('d', pathData);
+    burnedPath.setAttribute('d', pathData);
+    emberTrailPath.setAttribute('d', pathData);
+    state.pathLength = ropePath.getTotalLength();
+    state.milestones = calculateMilestones(state.points);
     state.isActive = true;
     overlay.hidden = false;
     document.documentElement.classList.add('fuse-ready');
-
-    const docHeight = getMeasuredDocumentHeight();
-    const viewportHeight = window.innerHeight;
-    const metrics = getRailMetrics();
-
-    state.scrollMax = Math.max(1, docHeight - viewportHeight);
-    state.railX = metrics.railX;
-    state.railTop = metrics.railTop;
-    state.railHeight = metrics.railHeight;
-
-    overlay.style.setProperty('--fuse-x', `${state.railX}px`);
-    overlay.style.setProperty('--fuse-top', `${state.railTop}px`);
-    overlay.style.setProperty('--fuse-height', `${state.railHeight}px`);
-    state.milestones = sections.map(getSectionThreshold);
-    createNodes();
     updateFuse();
   }
 
+  function getScrollProgress() {
+    const firstPoint = state.points[0];
+    const lastPoint = state.points[state.points.length - 1];
+
+    if (!firstPoint || !lastPoint || firstPoint.y === lastPoint.y) {
+      return 0;
+    }
+
+    const triggerY = window.scrollY + window.innerHeight * 0.58;
+    return clamp((triggerY - firstPoint.y) / (lastPoint.y - firstPoint.y), 0, 1);
+  }
+
   function setIgnitedSections(progress) {
-    sections.forEach((section, index) => {
-      if (progress >= state.milestones[index] - IGNITION_LEAD) {
-        igniteSection(section);
-        nodes[index]?.classList.add('is-ignited');
+    state.sections.forEach(({ section }, index) => {
+      if (progress >= state.milestones[index] - 0.015) {
+        section.classList.add('is-ignited');
       }
     });
   }
@@ -347,32 +356,29 @@ initI18n();
     particle.addEventListener('animationend', () => particle.remove(), { once: true });
   }
 
-  function updateSpark(travel) {
+  function updateSpark(point, angle) {
     spark.classList.add('is-visible');
-    spark.style.setProperty('--spark-angle', '90deg');
-    spark.style.transform = `translate3d(-50%, ${travel.toFixed(1)}px, 0)`;
+    spark.style.setProperty('--spark-angle', `${angle}rad`);
+    spark.style.transform = `translate3d(${point.x.toFixed(1)}px, ${point.y.toFixed(1)}px, 0)`;
   }
 
   function updateFuse() {
     state.isScheduled = false;
 
-    if (!state.isActive || state.railHeight <= 0) {
+    if (!state.isActive || state.pathLength <= 0) {
       return;
     }
 
     const progress = getScrollProgress();
-    const travel = state.railHeight * progress;
-    const point = {
-      x: state.railX,
-      y: state.railTop + travel,
-    };
-    const angle = Math.PI / 2;
+    const length = state.pathLength * progress;
+    const point = ropePath.getPointAtLength(length);
+    const nextPoint = ropePath.getPointAtLength(clamp(length + 2, 0, state.pathLength));
+    const angle = Math.atan2(nextPoint.y - point.y, nextPoint.x - point.x);
     const now = performance.now();
 
     state.progress = progress;
     overlay.style.setProperty('--fuse-progress', progress.toFixed(4));
-    burn.style.height = `${(progress * 100).toFixed(2)}%`;
-    updateSpark(travel);
+    updateSpark(point, angle);
     setIgnitedSections(progress);
     writeSelfCheck();
 
@@ -421,27 +427,27 @@ initI18n();
     if (event.matches) {
       setReducedMotionState();
     } else {
-      getFuseSections().forEach((section) => section.classList.remove('is-ignited', 'is-igniting'));
+      getFuseSections().forEach(({ section }) => section.classList.remove('is-ignited'));
       activateFuse();
     }
   });
 
   if (document.fonts?.ready) {
-    document.fonts.ready.then(layoutFuse).catch(() => {});
+    document.fonts.ready.then(scheduleLayout).catch(() => {});
   }
 
   document.querySelectorAll('img').forEach((image) => {
     if (typeof image.decode === 'function') {
-      image.decode().then(layoutFuse).catch(() => {});
+      image.decode().then(scheduleLayout).catch(() => {});
     }
 
     if (image.complete) return;
-    image.addEventListener('load', layoutFuse, { once: true });
-    image.addEventListener('error', layoutFuse, { once: true });
+    image.addEventListener('load', scheduleLayout, { once: true });
+    image.addEventListener('error', scheduleLayout, { once: true });
   });
 
-  onLanguageChange(layoutFuse);
-  window.addEventListener('load', layoutFuse, { once: true });
+  onLanguageChange(scheduleLayout);
+  window.addEventListener('load', scheduleLayout, { once: true });
 })();
 
 /**
