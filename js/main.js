@@ -481,11 +481,13 @@ initI18n();
     const viewport = getViewportMetrics();
 
     if (isMobileFuseLayout()) {
-      const viewportHeight = Math.max(doc.clientHeight || 0, window.innerHeight || 0, viewport.height || 0, 1);
-      const maxScroll = Math.max(scrollHeight - viewportHeight, 1);
+      const scrollingElement = document.scrollingElement || doc;
+      const mobileScrollHeight = Math.max(scrollingElement.scrollHeight || 0, scrollHeight);
+      const viewportHeight = scrollingElement.clientHeight || doc.clientHeight || window.innerHeight || viewport.height || 1;
+      const maxScroll = Math.max(mobileScrollHeight - viewportHeight, 1);
       const rawScrollTop = getScrollY();
       const scrollTop = clamp(rawScrollTop, 0, maxScroll);
-      const isAtDocumentEnd = scrollTop >= maxScroll - 2 || rawScrollTop + viewport.height >= scrollHeight - 2;
+      const isAtDocumentEnd = scrollTop >= maxScroll - 2 || rawScrollTop + viewportHeight >= mobileScrollHeight - 2;
 
       return isAtDocumentEnd ? 1 : clamp(scrollTop / maxScroll, 0, 1);
     }
