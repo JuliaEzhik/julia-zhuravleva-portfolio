@@ -145,12 +145,7 @@ initI18n();
   const burnedPath = document.getElementById('fuse-burned');
   const emberTrailPath = document.getElementById('fuse-ember-trail');
   const spark = document.getElementById('fuse-spark');
-  const sections = Array.from(document.querySelectorAll('[data-fuse-section]'))
-    .map((section) => ({
-      section,
-      anchor: section.querySelector('[data-fuse-anchor]'),
-    }))
-    .filter(({ section, anchor }) => section instanceof HTMLElement && anchor instanceof HTMLElement);
+  let sections = [];
 
   if (
     !(overlay instanceof HTMLElement) ||
@@ -158,8 +153,7 @@ initI18n();
     !(ropePath instanceof SVGPathElement) ||
     !(burnedPath instanceof SVGPathElement) ||
     !(emberTrailPath instanceof SVGPathElement) ||
-    !(spark instanceof HTMLElement) ||
-    sections.length < 2
+    !(spark instanceof HTMLElement)
   ) {
     return;
   }
@@ -171,6 +165,7 @@ initI18n();
     progress: 0,
     lastParticleAt: 0,
     isScheduled: false,
+    isLayoutScheduled: false,
     isActive: false,
   };
 
@@ -179,9 +174,37 @@ initI18n();
   }
 
   function igniteAll() {
-    sections.forEach(({ section }) => {
+    getFuseSections().forEach(({ section }) => {
       section.classList.add('is-ignited');
     });
+  }
+
+  function isUsableAnchor(element) {
+    if (!(element instanceof HTMLElement)) return false;
+
+    const rect = element.getBoundingClientRect();
+    const style = window.getComputedStyle(element);
+    return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+  }
+
+  function getFuseAnchor(section) {
+    const candidates = [
+      section.querySelector('[data-fuse-anchor]'),
+      section.querySelector('[data-fuse-heading]'),
+      section.querySelector('h1, h2, h3, .section-kicker'),
+      section,
+    ];
+
+    return candidates.find(isUsableAnchor) ?? null;
+  }
+
+  function getFuseSections() {
+    return Array.from(document.querySelectorAll('[data-fuse-section]'))
+      .map((section) => ({
+        section,
+        anchor: section instanceof HTMLElement ? getFuseAnchor(section) : null,
+      }))
+      .filter(({ section, anchor }) => section instanceof HTMLElement && anchor instanceof HTMLElement);
   }
 
   function setReducedMotionState() {
@@ -256,6 +279,25 @@ initI18n();
   }
 
   function layoutFuse() {
+    sections = getFuseSections();
+    state.isLayoutScheduled = false;
+
+    if (reducedMotionQuery.matches) {
+      state.isActive = false;
+      return;
+    }
+
+    if (sections.length < 2) {
+      state.isActive = false;
+      overlay.hidden = true;
+      document.documentElement.classList.remove('fuse-ready');
+      return;
+    }
+
+    state.isActive = true;
+    overlay.hidden = false;
+    document.documentElement.classList.add('fuse-ready');
+
     const doc = document.documentElement;
     const body = document.body;
     const docWidth = Math.max(doc.clientWidth, doc.scrollWidth, body.scrollWidth);
@@ -273,6 +315,12 @@ initI18n();
     burnedPath.setAttribute('d', pathData);
     emberTrailPath.setAttribute('d', pathData);
     state.pathLength = ropePath.getTotalLength();
+
+    [burnedPath, emberTrailPath].forEach((path) => {
+      path.style.strokeDasharray = `${state.pathLength}`;
+      path.style.strokeDashoffset = `${state.pathLength}`;
+    });
+
     state.milestones = calculateMilestones(state.points);
     updateFuse();
   }
@@ -342,6 +390,8 @@ initI18n();
 
     state.progress = progress;
     overlay.style.setProperty('--fuse-progress', progress.toFixed(4));
+    burnedPath.style.strokeDashoffset = `${state.pathLength - length}`;
+    emberTrailPath.style.strokeDashoffset = `${state.pathLength - length}`;
     updateSpark(point, angle);
     setIgnitedSections(progress);
 
@@ -364,16 +414,18 @@ initI18n();
   }
 
   function scheduleLayout() {
+    if (state.isLayoutScheduled) return;
+
+    state.isLayoutScheduled = true;
     requestAnimationFrame(layoutFuse);
   }
 
   function activateFuse() {
-    state.isActive = true;
-    overlay.hidden = false;
-    document.documentElement.classList.add('fuse-ready');
+    if (reducedMotionQuery.matches) return;
+
     window.addEventListener('scroll', scheduleUpdate, { passive: true });
     window.addEventListener('resize', scheduleLayout);
-    layoutFuse();
+    scheduleLayout();
   }
 
   if (reducedMotionQuery.matches) {
@@ -386,9 +438,19 @@ initI18n();
     if (event.matches) {
       setReducedMotionState();
     } else {
-      sections.forEach(({ section }) => section.classList.remove('is-ignited'));
+      getFuseSections().forEach(({ section }) => section.classList.remove('is-ignited'));
       activateFuse();
     }
+  });
+
+  if (document.fonts?.ready) {
+    document.fonts.ready.then(scheduleLayout).catch(() => {});
+  }
+
+  document.querySelectorAll('img').forEach((image) => {
+    if (image.complete) return;
+    image.addEventListener('load', scheduleLayout, { once: true });
+    image.addEventListener('error', scheduleLayout, { once: true });
   });
 
   window.addEventListener('load', scheduleLayout, { once: true });

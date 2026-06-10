@@ -113,7 +113,8 @@ body {
 .fuse-overlay__burned {
   stroke: url("#fuse-burn-gradient");
   stroke-width: 5;
-  stroke-dasharray: var(--fuse-progress) 1;
+  stroke-dasharray: 0 1;
+  stroke-dashoffset: 0;
   opacity: 0.92;
   filter: url("#fuse-glow");
 }
@@ -121,7 +122,8 @@ body {
 .fuse-overlay__ember-trail {
   stroke: rgba(255, 177, 104, 0.72);
   stroke-width: 1.4;
-  stroke-dasharray: var(--fuse-progress) 1;
+  stroke-dasharray: 0 1;
+  stroke-dashoffset: 0;
   opacity: 0.42;
   filter: drop-shadow(0 0 12px rgba(255, 90, 31, 0.46));
 }

@@ -294,7 +294,7 @@ export class DominoScene {
     const stairConfig = CONFIG.scene.stairs?.mobile;
     const stepHeight = stairConfig?.stepHeight ?? 0.09;
     const treadThickness = stairConfig?.treadThickness ?? 0.01;
-    const baseClearance = stairConfig?.baseClearance ?? 0.014;
+    const baseClearance = stairConfig?.baseClearance ?? 0.002;
     const supportBackOffset = stairConfig?.supportBackOffset ?? 0;
     const yaw = THREE.MathUtils.degToRad(CONFIG.domino.yawDeg);
     const localBackX = -Math.sin(yaw);
