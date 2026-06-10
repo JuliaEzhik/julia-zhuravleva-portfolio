@@ -25,7 +25,15 @@ initI18n();
     replayBtn: document.getElementById('replay-btn'),
   });
 
-  const scene = new DominoScene(canvasHost);
+  let scene;
+
+  try {
+    scene = new DominoScene(canvasHost);
+  } catch {
+    ui.showReveal(true);
+    ui.setReplayVisible(false);
+    return;
+  }
 
   function vibrateOnFinalImpact() {
     if (typeof navigator.vibrate !== 'function') return;
@@ -164,6 +172,7 @@ initI18n();
     pathLength: 0,
     progress: 0,
     sparkDistance: 0,
+    sparkViewportPoint: { x: -100, y: -100 },
     lastParticleAt: 0,
     layoutRetryTimer: 0,
     isScheduled: false,
@@ -198,6 +207,8 @@ initI18n();
       pathLength: Number(state.pathLength.toFixed(2)),
       progress: Number(state.progress.toFixed(4)),
       sparkDistance: Number(state.sparkDistance.toFixed(2)),
+      sparkLeft: Number(state.sparkViewportPoint.x.toFixed(1)),
+      sparkTop: Number(state.sparkViewportPoint.y.toFixed(1)),
       sections: state.sections.length,
     };
   }
@@ -353,12 +364,75 @@ initI18n();
   function getScrollProgress() {
     const doc = document.documentElement;
     const body = document.body;
-    const scrollingElement = document.scrollingElement || doc;
     const scrollHeight = Math.max(doc.scrollHeight, body.scrollHeight);
     const viewportHeight = window.innerHeight || doc.clientHeight || 1;
     const maxScroll = Math.max(scrollHeight - viewportHeight, 1);
+    const scrollTop = window.scrollY || window.pageYOffset || doc.scrollTop || body.scrollTop || 0;
 
-    return clamp(scrollingElement.scrollTop / maxScroll, 0, 1);
+    return clamp(scrollTop / maxScroll, 0, 1);
+  }
+
+  function getFallbackSparkPoint(progress) {
+    if (state.points.length >= 2) {
+      const scaledProgress = clamp(progress, 0, 1) * (state.points.length - 1);
+      const startIndex = Math.min(Math.floor(scaledProgress), state.points.length - 2);
+      const endIndex = startIndex + 1;
+      const segmentProgress = scaledProgress - startIndex;
+      const start = state.points[startIndex];
+      const end = state.points[endIndex];
+
+      return {
+        x: start.x + (end.x - start.x) * segmentProgress,
+        y: start.y + (end.y - start.y) * segmentProgress,
+      };
+    }
+
+    const viewportWidth = document.documentElement.clientWidth || window.innerWidth || 1;
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 1;
+
+    return {
+      x: window.scrollX + viewportWidth * (0.18 + 0.64 * progress),
+      y: window.scrollY + viewportHeight * (0.2 + 0.6 * progress),
+    };
+  }
+
+  function getFallbackSparkViewportPoint(progress) {
+    const viewportWidth = document.documentElement.clientWidth || window.innerWidth || 1;
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 1;
+    const margin = 24;
+    const travelWidth = Math.max(viewportWidth - margin * 2, 1);
+    const travelHeight = Math.max(viewportHeight - margin * 2, 1);
+    const weave = 0.5 + Math.sin(progress * Math.PI * 4) * 0.24;
+
+    return {
+      x: margin + travelWidth * weave,
+      y: margin + travelHeight * clamp(progress, 0, 1),
+    };
+  }
+
+  function toViewportPoint(point, progress) {
+    const sourcePoint = Number.isFinite(point?.x) && Number.isFinite(point?.y)
+      ? point
+      : getFallbackSparkPoint(progress);
+    const viewportWidth = document.documentElement.clientWidth || window.innerWidth || 1;
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 1;
+    const margin = 24;
+
+    const viewportPoint = {
+      x: sourcePoint.x - window.scrollX,
+      y: sourcePoint.y - window.scrollY,
+    };
+    const isVisible =
+      viewportPoint.x >= margin &&
+      viewportPoint.x <= viewportWidth - margin &&
+      viewportPoint.y >= margin &&
+      viewportPoint.y <= viewportHeight - margin;
+
+    if (!isVisible) {
+      return getFallbackSparkViewportPoint(progress);
+    }
+
+    return viewportPoint;
   }
 
   function setIgnitedSections(sparkDistance) {
@@ -402,10 +476,14 @@ initI18n();
     particle.addEventListener('animationend', () => particle.remove(), { once: true });
   }
 
-  function updateSpark(point, angle) {
+  function updateSpark(point, angle, progress) {
+    const viewportPoint = toViewportPoint(point, progress);
+
+    state.sparkViewportPoint = viewportPoint;
     spark.classList.add('is-visible');
     spark.style.setProperty('--spark-angle', `${angle}rad`);
-    spark.style.transform = `translate3d(${point.x.toFixed(1)}px, ${point.y.toFixed(1)}px, 0)`;
+    spark.style.left = `${viewportPoint.x.toFixed(1)}px`;
+    spark.style.top = `${viewportPoint.y.toFixed(1)}px`;
   }
 
   function updateFuse() {
@@ -418,8 +496,20 @@ initI18n();
 
     const progress = getScrollProgress();
     const sparkDistance = clamp(progress * state.pathLength, 0, state.pathLength);
-    const point = ropePath.getPointAtLength(sparkDistance);
-    const nextPoint = ropePath.getPointAtLength(clamp(sparkDistance + 2, 0, state.pathLength));
+    let point = ropePath.getPointAtLength(sparkDistance);
+    let nextPoint = ropePath.getPointAtLength(clamp(sparkDistance + 2, 0, state.pathLength));
+
+    if (
+      !Number.isFinite(point.x) ||
+      !Number.isFinite(point.y) ||
+      !Number.isFinite(nextPoint.x) ||
+      !Number.isFinite(nextPoint.y)
+    ) {
+      point = getFallbackSparkPoint(progress);
+      nextPoint = getFallbackSparkPoint(clamp(progress + 0.002, 0, 1));
+      queueLayoutRetry();
+    }
+
     const angle = Math.atan2(nextPoint.y - point.y, nextPoint.x - point.x);
     const now = performance.now();
 
@@ -427,7 +517,7 @@ initI18n();
     state.sparkDistance = sparkDistance;
     overlay.style.setProperty('--fuse-progress', progress.toFixed(4));
     setBurnProgress(sparkDistance);
-    updateSpark(point, angle);
+    updateSpark(point, angle, progress);
     setIgnitedSections(sparkDistance);
     writeSelfCheck();
 

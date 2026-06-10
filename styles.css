@@ -35,7 +35,7 @@ html,
 body {
   width: 100%;
   max-width: 100%;
-  height: 100%;
+  min-height: 100%;
   overflow-x: hidden;
   overscroll-behavior-x: none;
 }
@@ -128,14 +128,15 @@ body {
 
 .fuse-spark {
   --spark-angle: 0deg;
-  position: absolute;
-  left: 0;
-  top: 0;
+  position: fixed;
+  left: -100px;
+  top: -100px;
+  z-index: 9;
   width: 1px;
   height: 1px;
   opacity: 0;
-  transform: translate3d(-100px, -100px, 0);
-  will-change: transform, opacity;
+  transform: translate3d(-50%, -50%, 0);
+  will-change: left, top, opacity;
 }
 
 .fuse-spark.is-visible {
