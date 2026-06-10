@@ -572,10 +572,22 @@
         <form
           id="contact-form"
           class="contact-form fuse-reveal"
-          action="mailto:juliaezhik09@gmail.com"
-          data-recipient="juliaezhik09@gmail.com"
+          action="https://formsubmit.co/juliaezhik09@gmail.com"
+          method="POST"
           novalidate
         >
+          <input type="hidden" name="_subject" value="Portfolio inquiry">
+          <input type="hidden" name="_template" value="table">
+          <input type="hidden" name="_captcha" value="false">
+          <input
+            type="text"
+            name="_gotcha"
+            class="visually-hidden"
+            tabindex="-1"
+            autocomplete="off"
+            aria-hidden="true"
+          >
+
           <div class="contact-form__header">
             <p class="contact-form__eyebrow" data-i18n="form.eyebrow">Project inquiry</p>
             <h3 class="contact-form__title" data-i18n="form.title">Tell Julia what you need</h3>

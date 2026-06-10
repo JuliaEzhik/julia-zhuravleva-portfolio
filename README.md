@@ -27,7 +27,7 @@ index.html              Page shell, fuse overlay, canvas host, replay button, ti
 styles.css              Dark UI, scroll fuse effects, hero layout, project/gallery/contact sections, responsive styles
 images/                 Gallery screenshots used in the phone mockups
 js/
-  main.js               Bootstrap — wires scene, scroll fuse, animation, UI, contact mailto form
+  main.js               Bootstrap — wires scene, scroll fuse, animation, UI, contact form (FormSubmit)
   config.js             Colors, title text, timing (customize here)
   DominoScene.js        Renderer, camera, lights, table, domino row
   DominoPiece.js        Single domino mesh + fall / end poses
@@ -64,10 +64,16 @@ Add or replace screenshots in `images/`, then update the `.screen-card` figures 
 
 The contact section uses icon-enhanced contact cards for Julia's email, `juliaezhik09@gmail.com`, plus Telegram and WhatsApp links, alongside the project inquiry form.
 
-- `index.html` contact email link, Telegram link, WhatsApp badge link, form `action`, and form `data-recipient`
+- `index.html` contact email link, Telegram link, WhatsApp badge link, and form `action`
 - `js/main.js` `CONTACT_EMAIL_PLACEHOLDER`
 
-The form validates name, email, and message in the browser, then opens the visitor's email app with a prefilled `mailto:` message. There is no backend or message storage. The WhatsApp UI intentionally shows only a message label, not the phone number.
+The project inquiry form validates name, email, and message in the browser, then sends submissions to `juliaezhik09@gmail.com` via [FormSubmit.co](https://formsubmit.co) using an AJAX `fetch` POST (no custom backend). The WhatsApp UI intentionally shows only a message label, not the phone number.
+
+### FormSubmit activation (one-time)
+
+After the site is deployed and the form is used for the first time, FormSubmit sends an activation email to `juliaezhik09@gmail.com`. Julia must open that email and click **Activate Form** once; after that, all form submissions are delivered to the inbox. Until activation, submissions may not arrive.
+
+The form also includes a honeypot field (`_gotcha`) and disables FormSubmit's captcha (`_captcha: false`) for a smoother in-page success message.
 
 ## Customize colors
 

@@ -906,7 +906,7 @@ initI18n();
 })();
 
 /**
- * Contact form — validates input and opens the user's email client.
+ * Contact form — validates input and sends via FormSubmit.co (AJAX).
  */
 (function initContactForm() {
   'use strict';
@@ -919,10 +919,12 @@ initI18n();
     email: form.elements.namedItem('email'),
     projectType: form.elements.namedItem('projectType'),
     message: form.elements.namedItem('message'),
+    gotcha: form.elements.namedItem('_gotcha'),
   };
 
   const status = document.getElementById('contact-form-status');
-  const recipient = form.dataset.recipient || CONTACT_EMAIL_PLACEHOLDER;
+  const submitButton = form.querySelector('.contact-form__submit');
+  const formSubmitEndpoint = `https://formsubmit.co/ajax/${CONTACT_EMAIL_PLACEHOLDER}`;
 
   function setFieldError(field, message) {
     if (!(field instanceof HTMLElement)) return;
@@ -936,11 +938,18 @@ initI18n();
     }
   }
 
-  function setStatus(message, isSuccess = false) {
+  function setStatus(message, { isSuccess = false, isError = false } = {}) {
     if (!status) return;
 
     status.textContent = message;
     status.classList.toggle('is-success', isSuccess);
+    status.classList.toggle('is-error', isError);
+  }
+
+  function setSubmitting(isSubmitting) {
+    if (submitButton instanceof HTMLButtonElement) {
+      submitButton.disabled = isSubmitting;
+    }
   }
 
   function validateForm() {
@@ -985,35 +994,81 @@ initI18n();
     return key ? t(key) : option?.textContent?.trim() ?? t('form.optionOther');
   }
 
-  function buildMailtoUrl() {
+  function isSpamSubmission() {
+    return fields.gotcha instanceof HTMLInputElement && fields.gotcha.value.trim().length > 0;
+  }
+
+  async function submitToFormSubmit() {
     const name = fields.name instanceof HTMLInputElement ? fields.name.value.trim() : '';
     const email = fields.email instanceof HTMLInputElement ? fields.email.value.trim() : '';
     const projectType = getProjectTypeLabel();
     const message = fields.message instanceof HTMLTextAreaElement ? fields.message.value.trim() : '';
-    const subject = t('form.mailtoSubject', undefined, { type: projectType });
-    const body = [
-      `${t('form.mailtoName')}: ${name}`,
-      `${t('form.mailtoEmail')}: ${email}`,
-      `${t('form.mailtoProjectType')}: ${projectType}`,
-      '',
-      `${t('form.mailtoMessage')}:`,
-      message,
-    ].join('\n');
 
-    return `mailto:${recipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    const response = await fetch(formSubmitEndpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        name,
+        email,
+        projectType,
+        message,
+        _subject: t('form.mailtoSubject', undefined, { type: projectType }),
+        _template: 'table',
+        _captcha: 'false',
+      }),
+    });
+
+    let data = null;
+    try {
+      data = await response.json();
+    } catch {
+      data = null;
+    }
+
+    const succeeded =
+      response.ok &&
+      data &&
+      (data.success === true || data.success === 'true');
+
+    return { succeeded, data };
   }
 
-  form.addEventListener('submit', (event) => {
+  form.addEventListener('submit', async (event) => {
     event.preventDefault();
 
     const errors = validateForm();
     if (errors.length > 0) {
-      setStatus(t('form.statusFix'));
+      setStatus(t('form.statusFix'), { isError: true });
       errors[0].focus();
       return;
     }
 
-    setStatus(t('form.statusOpening'), true);
-    window.location.href = buildMailtoUrl();
+    if (isSpamSubmission()) {
+      setStatus(t('form.statusSuccess'), { isSuccess: true });
+      form.reset();
+      return;
+    }
+
+    setSubmitting(true);
+    setStatus(t('form.statusSending'));
+
+    try {
+      const { succeeded } = await submitToFormSubmit();
+
+      if (succeeded) {
+        setStatus(t('form.statusSuccess'), { isSuccess: true });
+        form.reset();
+        return;
+      }
+
+      setStatus(t('form.statusError'), { isError: true });
+    } catch {
+      setStatus(t('form.statusError'), { isError: true });
+    } finally {
+      setSubmitting(false);
+    }
   });
 })();

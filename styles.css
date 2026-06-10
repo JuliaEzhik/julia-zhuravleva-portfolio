@@ -2005,6 +2005,10 @@ section[id] {
   color: var(--accent-glow);
 }
 
+.contact-form__status.is-error {
+  color: var(--accent-hot);
+}
+
 .contact-form__submit {
   width: 100%;
   display: inline-flex;
