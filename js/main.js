@@ -184,6 +184,43 @@ initI18n();
     return Math.min(Math.max(value, min), max);
   }
 
+  function getViewportMetrics() {
+    const doc = document.documentElement;
+    const visualViewport = window.visualViewport;
+    const width = visualViewport?.width || doc.clientWidth || window.innerWidth || 1;
+    const height = visualViewport?.height || window.innerHeight || doc.clientHeight || 1;
+
+    return {
+      width,
+      height,
+      offsetLeft: visualViewport?.offsetLeft || 0,
+      offsetTop: visualViewport?.offsetTop || 0,
+    };
+  }
+
+  function isMobileFuseLayout() {
+    return getViewportMetrics().width <= 639;
+  }
+
+  function getMobileRailViewportX() {
+    const { width } = getViewportMetrics();
+
+    return clamp(width * 0.11, 26, 42);
+  }
+
+  function getSafeViewportBounds(margin = 24) {
+    const viewport = getViewportMetrics();
+
+    return {
+      minX: viewport.offsetLeft + margin,
+      maxX: viewport.offsetLeft + Math.max(viewport.width - margin, margin),
+      minY: viewport.offsetTop + margin,
+      maxY: viewport.offsetTop + Math.max(viewport.height - margin, margin),
+      width: viewport.width,
+      height: viewport.height,
+    };
+  }
+
   function getFuseSections() {
     return Array.from(document.querySelectorAll('[data-fuse-section]'))
       .map((section) => ({
@@ -200,6 +237,8 @@ initI18n();
   }
 
   function writeSelfCheck() {
+    const bounds = getSafeViewportBounds();
+
     window.__scrollFuseSelfCheck = {
       elementsReady: true,
       reducedMotion: reducedMotionQuery.matches,
@@ -209,6 +248,12 @@ initI18n();
       sparkDistance: Number(state.sparkDistance.toFixed(2)),
       sparkLeft: Number(state.sparkViewportPoint.x.toFixed(1)),
       sparkTop: Number(state.sparkViewportPoint.y.toFixed(1)),
+      sparkInViewport:
+        state.sparkViewportPoint.x >= bounds.minX &&
+        state.sparkViewportPoint.x <= bounds.maxX &&
+        state.sparkViewportPoint.y >= bounds.minY &&
+        state.sparkViewportPoint.y <= bounds.maxY,
+      mobileRail: isMobileFuseLayout(),
       sections: state.sections.length,
     };
   }
@@ -230,10 +275,24 @@ initI18n();
     writeSelfCheck();
     window.removeEventListener('scroll', scheduleUpdate);
     window.removeEventListener('resize', scheduleLayout);
+    window.visualViewport?.removeEventListener('resize', scheduleLayout);
+    window.visualViewport?.removeEventListener('scroll', scheduleUpdate);
   }
 
-  function getAnchorPoint(anchor) {
+  function getAnchorPoint(anchor, section) {
     const rect = anchor.getBoundingClientRect();
+    const sectionRect = section.getBoundingClientRect();
+    const isHiddenAnchor = rect.width === 0 && rect.height === 0;
+    const anchorTop = isHiddenAnchor ? sectionRect.top : rect.top;
+    const anchorHeight = isHiddenAnchor ? Math.min(sectionRect.height * 0.16, 120) : rect.height;
+
+    if (isMobileFuseLayout()) {
+      return {
+        x: window.scrollX + getMobileRailViewportX(),
+        y: anchorTop + window.scrollY + anchorHeight * 0.52,
+      };
+    }
+
     const railOffset = window.innerWidth < 760 ? 18 : 38;
     const minX = window.scrollX + 18;
     const maxX = window.scrollX + document.documentElement.clientWidth - 18;
@@ -241,7 +300,7 @@ initI18n();
 
     return {
       x: clamp(preferredX, minX, maxX),
-      y: rect.top + window.scrollY + rect.height * 0.52,
+      y: anchorTop + window.scrollY + anchorHeight * 0.52,
     };
   }
 
@@ -333,7 +392,7 @@ initI18n();
     svg.setAttribute('width', String(docWidth));
     svg.setAttribute('height', String(docHeight));
 
-    state.points = state.sections.map(({ anchor }) => getAnchorPoint(anchor));
+    state.points = state.sections.map(({ anchor, section }) => getAnchorPoint(anchor, section));
     const pathData = buildFusePath(state.points);
 
     ropePath.setAttribute('d', pathData);
@@ -397,16 +456,14 @@ initI18n();
   }
 
   function getFallbackSparkViewportPoint(progress) {
-    const viewportWidth = document.documentElement.clientWidth || window.innerWidth || 1;
-    const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 1;
-    const margin = 24;
-    const travelWidth = Math.max(viewportWidth - margin * 2, 1);
-    const travelHeight = Math.max(viewportHeight - margin * 2, 1);
+    const bounds = getSafeViewportBounds();
+    const travelWidth = Math.max(bounds.maxX - bounds.minX, 1);
+    const travelHeight = Math.max(bounds.maxY - bounds.minY, 1);
     const weave = 0.5 + Math.sin(progress * Math.PI * 4) * 0.24;
 
     return {
-      x: margin + travelWidth * weave,
-      y: margin + travelHeight * clamp(progress, 0, 1),
+      x: bounds.minX + travelWidth * weave,
+      y: bounds.minY + travelHeight * clamp(progress, 0, 1),
     };
   }
 
@@ -414,19 +471,25 @@ initI18n();
     const sourcePoint = Number.isFinite(point?.x) && Number.isFinite(point?.y)
       ? point
       : getFallbackSparkPoint(progress);
-    const viewportWidth = document.documentElement.clientWidth || window.innerWidth || 1;
-    const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 1;
-    const margin = 24;
+    const bounds = getSafeViewportBounds();
 
     const viewportPoint = {
       x: sourcePoint.x - window.scrollX,
       y: sourcePoint.y - window.scrollY,
     };
+
+    if (isMobileFuseLayout()) {
+      return {
+        x: clamp(getMobileRailViewportX() + getViewportMetrics().offsetLeft, bounds.minX, bounds.maxX),
+        y: clamp(viewportPoint.y, bounds.minY, bounds.maxY),
+      };
+    }
+
     const isVisible =
-      viewportPoint.x >= margin &&
-      viewportPoint.x <= viewportWidth - margin &&
-      viewportPoint.y >= margin &&
-      viewportPoint.y <= viewportHeight - margin;
+      viewportPoint.x >= bounds.minX &&
+      viewportPoint.x <= bounds.maxX &&
+      viewportPoint.y >= bounds.minY &&
+      viewportPoint.y <= bounds.maxY;
 
     if (!isVisible) {
       return getFallbackSparkViewportPoint(progress);
@@ -551,8 +614,12 @@ initI18n();
 
     window.removeEventListener('scroll', scheduleUpdate);
     window.removeEventListener('resize', scheduleLayout);
+    window.visualViewport?.removeEventListener('resize', scheduleLayout);
+    window.visualViewport?.removeEventListener('scroll', scheduleUpdate);
     window.addEventListener('scroll', scheduleUpdate, { passive: true });
     window.addEventListener('resize', scheduleLayout);
+    window.visualViewport?.addEventListener('resize', scheduleLayout);
+    window.visualViewport?.addEventListener('scroll', scheduleUpdate, { passive: true });
     layoutFuse();
   }
 
