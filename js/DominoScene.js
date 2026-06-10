@@ -127,7 +127,7 @@ export class DominoScene {
   }
 
   _initTable() {
-    const tableGeo = new THREE.PlaneGeometry(14, 8);
+    const tableGeo = new THREE.PlaneGeometry(1, 1);
     const tableMat = new THREE.MeshStandardMaterial({
       color: 0x101218,
       roughness: 0.82,
@@ -141,6 +141,7 @@ export class DominoScene {
     this.table.position.y = 0;
     this.table.receiveShadow = true;
     this.scene.add(this.table);
+    this._applyTableLayout(window.innerWidth);
   }
 
   _dominoRowY(scale = 1) {
@@ -152,6 +153,15 @@ export class DominoScene {
     if (width < 640) return 'mobile';
     if (width < 1024) return 'tablet';
     return 'desktop';
+  }
+
+  _applyTableLayout(width = window.innerWidth) {
+    const tier = this._getViewportTier(width);
+    const table = CONFIG.scene.table?.[tier] ?? CONFIG.scene.table?.desktop;
+    if (!table || !this.table) return;
+
+    this.table.scale.set(table.width, table.depth, 1);
+    this.table.position.y = table.y ?? 0;
   }
 
   _getDominoCount(width = window.innerWidth) {
@@ -402,6 +412,7 @@ export class DominoScene {
     const didRebuildRow = this._rebuildDominoesForWidth(w);
     const tier = this._getViewportTier(w);
     const scale = this.getDominoScale(w);
+    this._applyTableLayout(w);
     this._positionDominoes(w);
 
     if (this.titlePlane) {

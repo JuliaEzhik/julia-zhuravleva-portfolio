@@ -2146,24 +2146,49 @@ section[id] {
 
 @media (max-width: 760px) {
   .site-header {
-    padding: 0.75rem 0.9rem 0;
+    position: fixed;
+    inset: 0 0 auto;
+    padding: max(0.65rem, env(safe-area-inset-top)) 0.75rem 0;
   }
 
   .site-nav {
     grid-template-columns: minmax(0, 1fr) auto auto;
-    border-radius: 24px;
+    gap: 0.42rem;
+    padding: 0.45rem;
+    border-radius: 22px;
+  }
+
+  .site-nav__brand {
+    gap: 0.56rem;
+  }
+
+  .site-nav__mark {
+    width: 2.35rem;
+    height: 2.35rem;
+  }
+
+  .site-nav__name {
+    font-size: clamp(0.92rem, 4vw, 1rem);
   }
 
   .site-nav__lang {
     order: 1;
+    padding: 0.16rem;
+    background: rgba(5, 6, 9, 0.38);
   }
 
   .site-nav__toggle {
     order: 2;
+    display: inline-flex;
+    width: 2.35rem;
+    height: 2.35rem;
   }
 
-  .site-nav__toggle {
-    display: inline-flex;
+  .site-nav__lang-btn {
+    min-width: 2rem;
+    padding: 0.48rem 0.46rem;
+    font-size: 0.66rem;
+    letter-spacing: 0.08em;
   }
 
   .site-nav__links {
@@ -2182,7 +2207,7 @@ section[id] {
   }
 
   .site-nav.is-open .site-nav__links {
-    max-height: 12rem;
+    max-height: 13rem;
     padding-top: 0.35rem;
     opacity: 1;
     pointer-events: auto;
@@ -2244,17 +2269,57 @@ section[id] {
 
 @media (max-width: 639px) {
   section[id] {
-    scroll-margin-top: 5.75rem;
+    scroll-margin-top: 5.5rem;
   }
 
   .page {
-    gap: 1rem;
-    padding-inline: 0.9rem;
+    gap: 0.9rem;
+    padding: 0.75rem 0.72rem clamp(4.5rem, 8vw, 7rem);
   }
 
   .hero {
-    padding: 1rem;
-    border-radius: 18px;
+    min-height: 100vh;
+    min-height: 100svh;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    align-items: stretch;
+    gap: 0.72rem;
+    padding: clamp(5.15rem, 15svh, 5.9rem) 0.82rem 0.86rem;
+    border-radius: 22px;
+    background:
+      radial-gradient(circle at 50% 12%, rgba(255, 122, 51, 0.2), transparent 19rem),
+      radial-gradient(circle at 82% 62%, rgba(255, 154, 85, 0.1), transparent 20rem),
+      linear-gradient(180deg, rgba(16, 18, 24, 0.84), rgba(5, 6, 10, 0.86));
+  }
+
+  .hero::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: 0.42rem;
+    z-index: 2;
+    width: 2.3rem;
+    height: 0.18rem;
+    border-radius: 999px;
+    background: linear-gradient(90deg, transparent, rgba(255, 122, 51, 0.72), transparent);
+    opacity: 0.72;
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+
+  .hero__header {
+    gap: 0.46rem;
+    align-content: start;
+  }
+
+  .hero__header .section-kicker {
+    font-size: 0.66rem;
+    letter-spacing: 0.14em;
+  }
+
+  .hero__intro {
+    max-width: 25rem;
+    font-size: clamp(0.82rem, 3.7vw, 0.94rem);
+    line-height: 1.5;
   }
 
   .tech-marquee {
@@ -2271,14 +2336,36 @@ section[id] {
   }
 
   .stage {
-    aspect-ratio: 4 / 5;
-    max-height: min(68vh, 520px);
-    border-radius: 18px;
+    min-height: clamp(28rem, 66svh, 36rem);
+    aspect-ratio: auto;
+    max-height: none;
+    border-radius: 22px;
+    background:
+      linear-gradient(145deg, rgba(255, 255, 255, 0.06), transparent 30%),
+      radial-gradient(ellipse at 50% 34%, rgba(255, 122, 51, 0.18), transparent 20rem),
+      radial-gradient(ellipse at 50% 88%, rgba(235, 71, 16, 0.16), transparent 18rem),
+      linear-gradient(180deg, rgba(16, 18, 24, 0.78), rgba(7, 8, 12, 0.9));
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.08) inset,
+      0 24px 60px rgba(0, 0, 0, 0.44),
+      0 0 44px rgba(235, 71, 16, 0.12);
   }
 
   .availability-pill {
-    max-width: calc(100% - 2rem);
-    padding: 0.48rem 0.68rem;
+    top: 0.72rem;
+    left: 50%;
+    max-width: calc(100% - 1.4rem);
+    justify-content: center;
+    padding: 0.46rem 0.66rem;
+    font-size: 0.62rem;
+    letter-spacing: 0.07em;
+    transform: translateX(-50%);
+  }
+
+  .replay-btn {
+    align-self: center;
+    padding: 0.58rem 1rem;
+    font-size: 0.82rem;
   }
 
   .projects {
@@ -2396,6 +2483,19 @@ section[id] {
 
 @media (max-width: 420px) {
   .site-nav__name {
-    max-width: 11rem;
+    max-width: 8.6rem;
+  }
+
+  .site-nav__lang-btn {
+    min-width: 1.85rem;
+    padding-inline: 0.4rem;
+  }
+
+  .hero {
+    padding-inline: 0.68rem;
+  }
+
+  .stage {
+    min-height: clamp(27rem, 64svh, 34rem);
   }
 }
