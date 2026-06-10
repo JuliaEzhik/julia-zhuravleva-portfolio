@@ -229,6 +229,23 @@ initI18n();
     };
   }
 
+  function syncSvgViewport() {
+    const doc = document.documentElement;
+    const viewportWidth = Math.max(doc.clientWidth, window.innerWidth || 0);
+    const viewportHeight = Math.max(doc.clientHeight, window.innerHeight || 0);
+
+    svg.setAttribute('viewBox', `${window.scrollX} ${window.scrollY} ${viewportWidth} ${viewportHeight}`);
+    svg.setAttribute('width', String(viewportWidth));
+    svg.setAttribute('height', String(viewportHeight));
+  }
+
+  function toViewportPoint(point) {
+    return {
+      x: point.x - window.scrollX,
+      y: point.y - window.scrollY,
+    };
+  }
+
   function buildFusePath(points) {
     return points.reduce((path, point, index) => {
       if (index === 0) {
@@ -298,15 +315,7 @@ initI18n();
     overlay.hidden = false;
     document.documentElement.classList.add('fuse-ready');
 
-    const doc = document.documentElement;
-    const body = document.body;
-    const docWidth = Math.max(doc.clientWidth, doc.scrollWidth, body.scrollWidth);
-    const docHeight = Math.max(doc.scrollHeight, body.scrollHeight, window.innerHeight);
-
-    overlay.style.setProperty('--fuse-doc-height', `${docHeight}px`);
-    svg.setAttribute('viewBox', `0 0 ${docWidth} ${docHeight}`);
-    svg.setAttribute('width', String(docWidth));
-    svg.setAttribute('height', String(docHeight));
+    syncSvgViewport();
 
     state.points = sections.map(({ anchor }) => getAnchorPoint(anchor));
     const pathData = buildFusePath(state.points);
@@ -369,9 +378,11 @@ initI18n();
   }
 
   function updateSpark(point, angle) {
+    const viewportPoint = toViewportPoint(point);
+
     spark.classList.add('is-visible');
     spark.style.setProperty('--spark-angle', `${angle}rad`);
-    spark.style.transform = `translate3d(${point.x.toFixed(1)}px, ${point.y.toFixed(1)}px, 0)`;
+    spark.style.transform = `translate3d(${viewportPoint.x.toFixed(1)}px, ${viewportPoint.y.toFixed(1)}px, 0)`;
   }
 
   function updateFuse() {
@@ -380,6 +391,8 @@ initI18n();
     if (!state.isActive || state.pathLength <= 0) {
       return;
     }
+
+    syncSvgViewport();
 
     const progress = getScrollProgress();
     const length = state.pathLength * progress;
@@ -396,10 +409,12 @@ initI18n();
     setIgnitedSections(progress);
 
     if (now - state.lastParticleAt > 95 && progress > 0.01 && progress < 0.995) {
-      emitParticle('ember', point, angle);
+      const viewportPoint = toViewportPoint(point);
+
+      emitParticle('ember', viewportPoint, angle);
 
       if (Math.random() > 0.45) {
-        emitParticle('smoke', point, angle);
+        emitParticle('smoke', viewportPoint, angle);
       }
 
       state.lastParticleAt = now;
