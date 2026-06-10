@@ -304,6 +304,7 @@ export class DominoPiece {
       pipRimMat,
       coralGradientMat,
     ];
+    group.userData.materials.forEach(forceSolidMaterial);
     return group;
   }
 
@@ -337,14 +338,15 @@ export class DominoPiece {
   setLastDominoPose(t, motion = {}) {
     this.lastPhase = t;
     const yaw = THREE.MathUtils.degToRad(CONFIG.domino.yawDeg);
-    const layAngle = Math.PI / 2;
-    const heroAngle = THREE.MathUtils.degToRad(86);
+    const layAngle = motion.layAngle ?? Math.PI / 2;
+    const heroAngle = motion.restAngle ?? THREE.MathUtils.degToRad(86);
+    const settleSlide = motion.settleSlide ?? D * 0.18;
     const impactT = 0.64;
     const fallSign = motion.fallSign ?? 1;
 
     if (t >= 1) {
       this.fallPivot.quaternion.setFromAxisAngle(FALL_AXIS, -heroAngle * fallSign);
-      this._applyHingePosition(D * 0.18, 0, fallSign);
+      this._applyHingePosition(settleSlide, 0, fallSign);
       this.yawGroup.rotation.y = yaw;
       this._applyVisualCompression(0);
       return;
@@ -371,7 +373,7 @@ export class DominoPiece {
     const compression = Math.sin(Math.min(u * Math.PI, Math.PI)) * damp * 1.35;
 
     this.fallPivot.quaternion.setFromAxisAngle(FALL_AXIS, -angle * fallSign);
-    this._applyHingePosition(eased * D * 0.18, Math.max(0, rebound) * 0.012, fallSign);
+    this._applyHingePosition(eased * settleSlide, Math.max(0, rebound) * 0.012, fallSign);
     this.yawGroup.rotation.y = yaw + rebound * 0.018;
     this._applyVisualCompression(compression);
   }
@@ -494,6 +496,14 @@ function clamp01(t) {
 
 function smoothstep(t) {
   return t * t * (3 - 2 * t);
+}
+
+function forceSolidMaterial(mat) {
+  mat.transparent = false;
+  mat.opacity = 1;
+  mat.depthWrite = true;
+  mat.depthTest = true;
+  mat.needsUpdate = true;
 }
 
 let coralGradientMaterial;

@@ -234,6 +234,10 @@ export class DominoScene {
 
     [stepMat, treadMat, lipMat].forEach((mat) => {
       mat.envMap = this._envMap;
+      mat.transparent = false;
+      mat.opacity = 1;
+      mat.depthWrite = true;
+      mat.depthTest = true;
     });
 
     this.mobileStairs.userData.materials = [stepMat, treadMat, lipMat];
@@ -249,12 +253,14 @@ export class DominoScene {
       block.castShadow = true;
       step.add(block);
 
+      const treadThickness = stairConfig.treadThickness ?? 0.01;
       const tread = new THREE.Mesh(
-        new THREE.BoxGeometry(stairConfig.stepWidth * 0.98, 0.008, stairConfig.stepDepth * 0.92),
+        new THREE.BoxGeometry(stairConfig.stepWidth * 0.98, treadThickness, stairConfig.stepDepth * 0.92),
         treadMat
       );
-      tread.position.y = stairConfig.stepHeight / 2 + 0.004;
+      tread.position.y = stairConfig.stepHeight / 2 + treadThickness / 2;
       tread.receiveShadow = true;
+      tread.castShadow = true;
       step.add(tread);
 
       const frontLip = new THREE.Mesh(
@@ -266,6 +272,8 @@ export class DominoScene {
         stairConfig.stepHeight / 2 + stairConfig.coralLipHeight * 0.5,
         stairConfig.stepDepth / 2 + stairConfig.coralLipDepth * 0.5
       );
+      frontLip.receiveShadow = true;
+      frontLip.castShadow = true;
       step.add(frontLip);
 
       this.mobileStairs.add(step);
@@ -285,7 +293,12 @@ export class DominoScene {
 
     const stairConfig = CONFIG.scene.stairs?.mobile;
     const stepHeight = stairConfig?.stepHeight ?? 0.09;
-    const topInset = stairConfig?.topInset ?? 0.01;
+    const treadThickness = stairConfig?.treadThickness ?? 0.01;
+    const baseClearance = stairConfig?.baseClearance ?? 0.014;
+    const supportBackOffset = stairConfig?.supportBackOffset ?? 0;
+    const yaw = THREE.MathUtils.degToRad(CONFIG.domino.yawDeg);
+    const localBackX = -Math.sin(yaw);
+    const localBackZ = -Math.cos(yaw);
 
     this.mobileStairSteps.forEach((step, index) => {
       const domino = this.dominoes[index];
@@ -295,10 +308,11 @@ export class DominoScene {
       }
 
       step.visible = true;
+      const fallSign = index % 2 === 0 ? -1 : 1;
       step.position.set(
-        0.02,
-        domino.root.position.y - stepHeight / 2 - topInset,
-        domino.root.position.z
+        localBackX * fallSign * supportBackOffset,
+        domino.root.position.y - baseClearance - stepHeight / 2 - treadThickness,
+        domino.root.position.z + localBackZ * fallSign * supportBackOffset
       );
     });
   }

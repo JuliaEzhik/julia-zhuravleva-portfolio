@@ -4,6 +4,8 @@ import { CONFIG } from './config.js';
 const YAW_RAD = THREE.MathUtils.degToRad(CONFIG.domino.yawDeg);
 const REST_ANGLE = THREE.MathUtils.degToRad(86.5);
 const STACK_SETTLE_SLIDE = CONFIG.domino.depth * 0.2;
+const MOBILE_REST_ANGLE = THREE.MathUtils.degToRad(CONFIG.domino.mobileRestAngleDeg ?? 70);
+const MOBILE_STACK_SETTLE_SLIDE = CONFIG.domino.mobileSettleSlide ?? STACK_SETTLE_SLIDE;
 const CONTACT_GEOMETRY = createContactGeometry();
 const PRE_IMPACT_LEAN = THREE.MathUtils.degToRad(1.4);
 const CONTACT_HOLD_ALLOWANCE = THREE.MathUtils.degToRad(1.8);
@@ -169,6 +171,14 @@ export class AnimationController {
     return index % 2 === 0 ? -1 : 1;
   }
 
+  _applyMobileSolidObjectLimits(motion) {
+    motion.angle = Math.min(motion.angle, MOBILE_REST_ANGLE);
+    motion.slideBack = Math.min(motion.slideBack ?? motion.slideZ ?? 0, MOBILE_STACK_SETTLE_SLIDE);
+    motion.slideZ = motion.slideBack;
+    motion.liftY = Math.max(motion.liftY ?? 0, 0);
+    return motion;
+  }
+
   _applyPreImpactResponse(lastIndex) {
     for (let i = 1; i <= lastIndex; i++) {
       const start = i === lastIndex ? this.lastFallStart : this.fallStarts[i];
@@ -202,9 +212,19 @@ export class AnimationController {
       d.setImpactHighlight(0);
       const fallSign = this._fallSignForIndex(i);
       if (i < this.dominoes.length - 1) {
-        d.setFallAngle(REST_ANGLE, { fallSign, slideBack: STACK_SETTLE_SLIDE });
+        const isMobileZigzag = this._isVerticalZigzagLayout();
+        d.setFallAngle(isMobileZigzag ? MOBILE_REST_ANGLE : REST_ANGLE, {
+          fallSign,
+          slideBack: isMobileZigzag ? MOBILE_STACK_SETTLE_SLIDE : STACK_SETTLE_SLIDE,
+        });
       } else {
-        d.setLastDominoPose(1, { fallSign });
+        const isMobileZigzag = this._isVerticalZigzagLayout();
+        d.setLastDominoPose(1, {
+          fallSign,
+          restAngle: isMobileZigzag ? MOBILE_REST_ANGLE : undefined,
+          layAngle: isMobileZigzag ? MOBILE_REST_ANGLE : undefined,
+          settleSlide: isMobileZigzag ? MOBILE_STACK_SETTLE_SLIDE : undefined,
+        });
       }
     });
     this.scene.clearCameraShake();
@@ -331,7 +351,7 @@ export class AnimationController {
 
       const profile = this._profile(i);
       const localT = (this.elapsed - start) / profile.duration;
-      const motion = this._fallMotion(localT, i);
+      const motion = this._applyMobileSolidObjectLimits(this._fallMotion(localT, i));
       const nextStart = this._nextStartTime(i, lastIndex);
       motion.fallSign = this._fallSignForIndex(i);
 
@@ -360,6 +380,9 @@ export class AnimationController {
       const t = Math.min(localT, 1);
       this.dominoes[lastIndex].setLastDominoPose(t, {
         fallSign: this._fallSignForIndex(lastIndex),
+        restAngle: MOBILE_REST_ANGLE,
+        layAngle: MOBILE_REST_ANGLE,
+        settleSlide: MOBILE_STACK_SETTLE_SLIDE,
       });
       this.dominoes[lastIndex].setImpactHighlight(this._contactPulse(lastIndex, 0.26));
 
@@ -386,6 +409,9 @@ export class AnimationController {
       if (localT >= 1 && !this._completeFired) {
         this.dominoes[lastIndex].setLastDominoPose(1, {
           fallSign: this._fallSignForIndex(lastIndex),
+          restAngle: MOBILE_REST_ANGLE,
+          layAngle: MOBILE_REST_ANGLE,
+          settleSlide: MOBILE_STACK_SETTLE_SLIDE,
         });
         this.state = 'complete';
         this.scene.clearCameraShake();

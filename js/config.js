@@ -40,9 +40,11 @@ export const CONFIG = {
     /** Tighter row for phone screens with fewer dominoes */
     mobileSpacing: 0.62,
     mobileLayout: 'vertical-zigzag',
-    mobileVerticalSpacing: 0.38,
-    mobileVerticalCenterY: 0.3,
+    mobileVerticalSpacing: 0.42,
+    mobileVerticalCenterY: 0.28,
     mobileZigzagOffset: 0.23,
+    mobileRestAngleDeg: 70,
+    mobileSettleSlide: 0.035,
     scale: { desktop: 1, tablet: 0.92, mobile: 0.82 },
     /** Per-domino yaw, so the faces stay visible while side/depth still reads clearly */
     yawDeg: 64,
@@ -87,12 +89,14 @@ export const CONFIG = {
     viewRotationDeg: -90,
     stairs: {
       mobile: {
-        stepHeight: 0.09,
-        stepWidth: 1.08,
-        stepDepth: 0.54,
+        stepHeight: 0.075,
+        stepWidth: 0.92,
+        stepDepth: 0.46,
         coralLipHeight: 0.012,
         coralLipDepth: 0.018,
-        topInset: 0.012,
+        treadThickness: 0.01,
+        baseClearance: 0.018,
+        supportBackOffset: 0.055,
       },
     },
   },
