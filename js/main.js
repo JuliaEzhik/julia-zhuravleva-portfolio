@@ -174,6 +174,12 @@ initI18n();
     progress: 0,
     sparkDistance: 0,
     sparkViewportPoint: { x: -100, y: -100 },
+    atMobileEnd: false,
+    mobileFrozenEndpoint: null,
+    mobileFrozenAngle: 0,
+    mobileEndScrollTop: 0,
+    mobileEndRearmScrollTop: 0,
+    mobileDeferredLayout: false,
     mobileLastValidRoutePoint: null,
     mobileLastValidEndPoint: null,
     lastParticleAt: 0,
@@ -263,6 +269,7 @@ initI18n();
       sparkDistance: Number(state.sparkDistance.toFixed(2)),
       sparkLeft: Number(state.sparkViewportPoint.x.toFixed(1)),
       sparkTop: Number(state.sparkViewportPoint.y.toFixed(1)),
+      atMobileEnd: state.atMobileEnd,
       sparkInViewport:
         state.sparkViewportPoint.x >= bounds.minX &&
         state.sparkViewportPoint.x <= bounds.maxX &&
@@ -286,6 +293,11 @@ initI18n();
     document.documentElement.classList.remove('fuse-ready');
     overlay.hidden = true;
     state.isActive = false;
+    state.atMobileEnd = false;
+    state.mobileFrozenEndpoint = null;
+    state.mobileEndScrollTop = 0;
+    state.mobileEndRearmScrollTop = 0;
+    state.mobileDeferredLayout = false;
     igniteAll();
     writeSelfCheck();
     window.removeEventListener('scroll', scheduleUpdate);
@@ -397,7 +409,7 @@ initI18n();
   }
 
   function rememberMobileRoutePoint(point, isEndPoint = false) {
-    if (!isMobileFuseLayout() || !isFinitePoint(point)) return;
+    if (state.atMobileEnd || !isMobileFuseLayout() || !isFinitePoint(point)) return;
 
     const routePoint = { x: point.x, y: point.y };
     state.mobileLastValidRoutePoint = routePoint;
@@ -418,6 +430,21 @@ initI18n();
 
   function layoutFuse() {
     state.isLayoutScheduled = false;
+
+    if (state.atMobileEnd) {
+      if (isMobileFuseLayout()) {
+        state.mobileDeferredLayout = true;
+        updateFuse();
+        return;
+      }
+
+      state.atMobileEnd = false;
+      state.mobileFrozenEndpoint = null;
+      state.mobileEndScrollTop = 0;
+      state.mobileEndRearmScrollTop = 0;
+      state.mobileDeferredLayout = false;
+    }
+
     state.sections = getFuseSections();
 
     if (reducedMotionQuery.matches) {
@@ -474,6 +501,28 @@ initI18n();
     updateFuse();
   }
 
+  function getMobileScrollState() {
+    const doc = document.documentElement;
+    const body = document.body;
+    const scrollHeight = Math.max(doc.scrollHeight, body.scrollHeight);
+    const viewport = getViewportMetrics();
+    const scrollingElement = document.scrollingElement || doc;
+    const mobileScrollHeight = Math.max(scrollingElement.scrollHeight || 0, scrollHeight);
+    const viewportHeight = scrollingElement.clientHeight || doc.clientHeight || window.innerHeight || viewport.height || 1;
+    const maxScroll = Math.max(mobileScrollHeight - viewportHeight, 1);
+    const rawScrollTop = getScrollY();
+    const scrollTop = clamp(rawScrollTop, 0, maxScroll);
+    const isAtDocumentEnd = scrollTop >= maxScroll - 2 || rawScrollTop + viewportHeight >= mobileScrollHeight - 2;
+
+    return {
+      progress: isAtDocumentEnd ? 1 : clamp(scrollTop / maxScroll, 0, 1),
+      rawScrollTop,
+      scrollTop,
+      maxScroll,
+      isAtDocumentEnd,
+    };
+  }
+
   function getScrollProgress() {
     const doc = document.documentElement;
     const body = document.body;
@@ -481,15 +530,7 @@ initI18n();
     const viewport = getViewportMetrics();
 
     if (isMobileFuseLayout()) {
-      const scrollingElement = document.scrollingElement || doc;
-      const mobileScrollHeight = Math.max(scrollingElement.scrollHeight || 0, scrollHeight);
-      const viewportHeight = scrollingElement.clientHeight || doc.clientHeight || window.innerHeight || viewport.height || 1;
-      const maxScroll = Math.max(mobileScrollHeight - viewportHeight, 1);
-      const rawScrollTop = getScrollY();
-      const scrollTop = clamp(rawScrollTop, 0, maxScroll);
-      const isAtDocumentEnd = scrollTop >= maxScroll - 2 || rawScrollTop + viewportHeight >= mobileScrollHeight - 2;
-
-      return isAtDocumentEnd ? 1 : clamp(scrollTop / maxScroll, 0, 1);
+      return getMobileScrollState().progress;
     }
 
     const viewportHeight = viewport.height || window.innerHeight || doc.clientHeight || 1;
@@ -636,14 +677,43 @@ initI18n();
     particle.addEventListener('animationend', () => particle.remove(), { once: true });
   }
 
-  function updateSpark(point, angle, progress) {
-    const viewportPoint = toViewportPoint(point, progress);
-
+  function setSparkViewportPoint(viewportPoint, angle) {
     state.sparkViewportPoint = viewportPoint;
     spark.classList.add('is-visible');
     spark.style.setProperty('--spark-angle', `${angle}rad`);
     spark.style.left = `${viewportPoint.x.toFixed(1)}px`;
     spark.style.top = `${viewportPoint.y.toFixed(1)}px`;
+  }
+
+  function updateSpark(point, angle, progress) {
+    setSparkViewportPoint(toViewportPoint(point, progress), angle);
+  }
+
+  function lockMobileEnd(point, angle, mobileScrollState) {
+    const endPoint = isFinitePoint(point)
+      ? point
+      : getRouteEndPoint() || state.mobileLastValidEndPoint || state.mobileLastValidRoutePoint;
+
+    if (!isFinitePoint(endPoint)) return;
+
+    rememberMobileRoutePoint(endPoint, true);
+    state.atMobileEnd = true;
+    state.mobileFrozenEndpoint = toViewportPoint(endPoint, 1);
+    state.mobileFrozenAngle = angle;
+    state.mobileEndScrollTop = mobileScrollState?.scrollTop ?? getScrollY();
+    state.mobileEndRearmScrollTop = 0;
+  }
+
+  function unlockMobileEnd(rearmScrollTop = 0) {
+    state.atMobileEnd = false;
+    state.mobileFrozenEndpoint = null;
+    state.mobileEndScrollTop = 0;
+    state.mobileEndRearmScrollTop = rearmScrollTop;
+
+    if (state.mobileDeferredLayout) {
+      state.mobileDeferredLayout = false;
+      scheduleLayout();
+    }
   }
 
   function updateFuse() {
@@ -654,12 +724,52 @@ initI18n();
       return;
     }
 
-    const progress = getScrollProgress();
     const isMobile = isMobileFuseLayout();
-    const mobileAtEnd = isMobile && progress >= 0.998;
-    const sparkDistance = mobileAtEnd
-      ? state.pathLength
-      : clamp(getRouteDistanceForViewport(progress), 0, state.pathLength);
+    const mobileScrollState = isMobile ? getMobileScrollState() : null;
+    const progress = mobileScrollState?.progress ?? getScrollProgress();
+
+    if (!isMobile && state.atMobileEnd) {
+      unlockMobileEnd();
+    }
+
+    if (isMobile && state.atMobileEnd && mobileScrollState) {
+      if (mobileScrollState.scrollTop > state.mobileEndScrollTop) {
+        state.mobileEndScrollTop = mobileScrollState.scrollTop;
+      }
+    }
+
+    if (
+      isMobile &&
+      state.atMobileEnd &&
+      mobileScrollState &&
+      state.mobileEndScrollTop - mobileScrollState.scrollTop > 32
+    ) {
+      unlockMobileEnd(state.mobileEndScrollTop);
+    }
+
+    if (isMobile && state.atMobileEnd && isFinitePoint(state.mobileFrozenEndpoint)) {
+      state.progress = 1;
+      state.sparkDistance = state.pathLength;
+      overlay.style.setProperty('--fuse-progress', '1.0000');
+      setBurnProgress(state.pathLength);
+      setSparkViewportPoint(state.mobileFrozenEndpoint, state.mobileFrozenAngle);
+      setIgnitedSections(state.pathLength);
+      writeSelfCheck();
+      return;
+    }
+
+    const routeDistance = clamp(getRouteDistanceForViewport(progress), 0, state.pathLength);
+    const canLockMobileEnd =
+      !isMobile ||
+      state.mobileEndRearmScrollTop <= 0 ||
+      mobileScrollState?.isAtDocumentEnd ||
+      (mobileScrollState && mobileScrollState.scrollTop >= state.mobileEndRearmScrollTop - 2);
+    const mobileAtEnd = isMobile && canLockMobileEnd && (
+      progress >= 0.995 ||
+      mobileScrollState?.isAtDocumentEnd ||
+      routeDistance >= state.pathLength - 1
+    );
+    const sparkDistance = mobileAtEnd ? state.pathLength : routeDistance;
     let point = ropePath.getPointAtLength(sparkDistance);
     let nextPoint = ropePath.getPointAtLength(clamp(sparkDistance + (mobileAtEnd ? -2 : 2), 0, state.pathLength));
 
@@ -694,18 +804,27 @@ initI18n();
       queueLayoutRetry();
     }
 
-    rememberMobileRoutePoint(point, mobileAtEnd || sparkDistance >= state.pathLength - 1);
-
     const angle = mobileAtEnd
       ? Math.atan2(point.y - nextPoint.y, point.x - nextPoint.x)
       : Math.atan2(nextPoint.y - point.y, nextPoint.x - point.x);
     const now = performance.now();
+    const displayProgress = mobileAtEnd ? 1 : progress;
 
-    state.progress = progress;
+    rememberMobileRoutePoint(point, mobileAtEnd || sparkDistance >= state.pathLength - 1);
+
+    if (mobileAtEnd) {
+      lockMobileEnd(point, angle, mobileScrollState);
+    }
+
+    state.progress = displayProgress;
     state.sparkDistance = sparkDistance;
-    overlay.style.setProperty('--fuse-progress', progress.toFixed(4));
+    overlay.style.setProperty('--fuse-progress', displayProgress.toFixed(4));
     setBurnProgress(sparkDistance);
-    updateSpark(point, angle, progress);
+    if (mobileAtEnd && isFinitePoint(state.mobileFrozenEndpoint)) {
+      setSparkViewportPoint(state.mobileFrozenEndpoint, state.mobileFrozenAngle);
+    } else {
+      updateSpark(point, angle, progress);
+    }
     setIgnitedSections(sparkDistance);
     writeSelfCheck();
 
@@ -729,6 +848,11 @@ initI18n();
 
   function scheduleLayout() {
     if (state.isLayoutScheduled) return;
+
+    if (state.atMobileEnd && isMobileFuseLayout()) {
+      state.mobileDeferredLayout = true;
+      return;
+    }
 
     state.isLayoutScheduled = true;
     requestAnimationFrame(layoutFuse);
