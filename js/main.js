@@ -146,6 +146,8 @@ initI18n();
   const emberTrailPath = document.getElementById('fuse-ember-trail');
   const spark = document.getElementById('fuse-spark');
   let sections = [];
+  const IGNITION_LEAD = 0.006;
+  const IGNITION_FLASH_MS = 1400;
 
   if (
     !(overlay instanceof HTMLElement) ||
@@ -173,9 +175,22 @@ initI18n();
     return Math.min(Math.max(value, min), max);
   }
 
+  function igniteSection(section, withFlash = true) {
+    const wasIgnited = section.classList.contains('is-ignited');
+
+    section.classList.add('is-ignited');
+
+    if (!withFlash || wasIgnited) return;
+
+    section.classList.add('is-igniting');
+    window.setTimeout(() => {
+      section.classList.remove('is-igniting');
+    }, IGNITION_FLASH_MS);
+  }
+
   function igniteAll() {
     getFuseSections().forEach(({ section }) => {
-      section.classList.add('is-ignited');
+      igniteSection(section, false);
     });
   }
 
@@ -348,8 +363,8 @@ initI18n();
 
   function setIgnitedSections(progress) {
     sections.forEach(({ section }, index) => {
-      if (progress >= state.milestones[index] - 0.015) {
-        section.classList.add('is-ignited');
+      if (progress >= state.milestones[index] - IGNITION_LEAD) {
+        igniteSection(section);
       }
     });
   }
@@ -453,7 +468,7 @@ initI18n();
     if (event.matches) {
       setReducedMotionState();
     } else {
-      getFuseSections().forEach(({ section }) => section.classList.remove('is-ignited'));
+      getFuseSections().forEach(({ section }) => section.classList.remove('is-ignited', 'is-igniting'));
       activateFuse();
     }
   });
