@@ -67,10 +67,10 @@ export class DominoPiece {
     const group = new THREE.Group();
     const geometry = new RoundedBoxGeometry(W, H, D, 8, 0.05);
 
-    const ivory = new THREE.Color('#f3ead9');
-    const insetIvory = new THREE.Color('#f7f1e5');
-    const lineColor = new THREE.Color('#5a5146');
-    const markColor = new THREE.Color('#3f3932');
+    const ivory = new THREE.Color('#f7eedc');
+    const insetIvory = new THREE.Color('#fff7ea');
+    const lineColor = new THREE.Color('#4e4439');
+    const markColor = new THREE.Color('#2f2923');
     const accent = new THREE.Color(palette.edge);
 
     const bodyMat = new THREE.MeshPhysicalMaterial({
@@ -78,11 +78,11 @@ export class DominoPiece {
       map: getBoneTexture(),
       bumpMap: getBoneBumpTexture(),
       bumpScale: 0.007,
-      roughness: 0.42,
+      roughness: 0.38,
       metalness: 0.02,
-      clearcoat: 0.42,
-      clearcoatRoughness: 0.46,
-      envMapIntensity: 0.68,
+      clearcoat: 0.46,
+      clearcoatRoughness: 0.4,
+      envMapIntensity: 0.76,
     });
 
     const frontMat = new THREE.MeshPhysicalMaterial({
@@ -90,15 +90,15 @@ export class DominoPiece {
       map: getBoneTexture(),
       bumpMap: getBoneBumpTexture(),
       bumpScale: 0.004,
-      roughness: 0.36,
+      roughness: 0.32,
       metalness: 0.015,
-      clearcoat: 0.44,
-      clearcoatRoughness: 0.42,
-      envMapIntensity: 0.72,
+      clearcoat: 0.52,
+      clearcoatRoughness: 0.36,
+      envMapIntensity: 0.84,
     });
 
     const grooveMat = new THREE.MeshPhysicalMaterial({
-      color: lineColor.lerp(accent, 0.24),
+      color: lineColor.lerp(accent, 0.18),
       roughness: 0.5,
       metalness: 0.03,
       clearcoat: 0.18,
@@ -264,7 +264,7 @@ export class DominoPiece {
       FACE_SURFACE_Z + 0.0017
     );
 
-    const pipRadius = W * 0.034;
+    const pipRadius = W * 0.04;
     const pipBottomGeometry = new THREE.CircleGeometry(pipRadius * 0.86, 48);
     const pipWallGeometry = new THREE.RingGeometry(pipRadius * 0.72, pipRadius * 1.12, 48);
     const pipRimGeometry = new THREE.TorusGeometry(pipRadius * 1.05, pipRadius * 0.085, 8, 48);
@@ -624,7 +624,7 @@ function getCoralGradientMaterial() {
     color: 0xffffff,
     side: THREE.DoubleSide,
     emissive: 0xff5a1f,
-    emissiveIntensity: 0.12,
+    emissiveIntensity: 0.18,
     roughness: 0.28,
     metalness: 0.05,
     clearcoat: 0.5,

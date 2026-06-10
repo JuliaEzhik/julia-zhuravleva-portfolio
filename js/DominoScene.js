@@ -25,6 +25,7 @@ export class DominoScene {
     this._initLights();
     this._initEnvironment();
     this._initTable();
+    this._initMobileStairs();
     this._initDominoes();
     this.subtitleText = SUBTITLE_TEXT;
     this._initTitlePlane();
@@ -60,7 +61,7 @@ export class DominoScene {
   }
 
   _getPixelRatio() {
-    const cap = this._leanRendering ? 1.25 : 1.75;
+    const cap = this._leanRendering ? 1.5 : 2;
     return Math.min(window.devicePixelRatio || 1, cap);
   }
 
@@ -105,11 +106,11 @@ export class DominoScene {
   }
 
   _initLights() {
-    const ambient = new THREE.AmbientLight(0xffead6, 0.28);
+    const ambient = new THREE.AmbientLight(0xffead6, 0.34);
     this.scene.add(ambient);
 
-    this.keyLight = new THREE.DirectionalLight(0xfff2df, 1.28);
-    this.keyLight.position.set(-1.9, 5.7, 4.9);
+    this.keyLight = new THREE.DirectionalLight(0xfff2df, 1.42);
+    this.keyLight.position.set(-1.7, 5.9, 4.6);
     this.keyLight.castShadow = !this._leanRendering;
     this.keyLight.shadow.mapSize.set(this._leanRendering ? 512 : 2048, this._leanRendering ? 512 : 2048);
     this.keyLight.shadow.camera.near = 0.5;
@@ -122,11 +123,11 @@ export class DominoScene {
     this.keyLight.shadow.normalBias = 0.02;
     this.scene.add(this.keyLight);
 
-    const fill = new THREE.DirectionalLight(0xff7a33, 0.18);
-    fill.position.set(3.5, 2.15, 2.7);
+    const fill = new THREE.DirectionalLight(0xff7a33, 0.26);
+    fill.position.set(3.2, 2.35, 2.4);
     this.scene.add(fill);
 
-    const rim = new THREE.DirectionalLight(0xfff7ec, 0.62);
+    const rim = new THREE.DirectionalLight(0xfff7ec, 0.72);
     rim.position.set(0.8, 3.8, -5.6);
     this.scene.add(rim);
   }
@@ -203,6 +204,105 @@ export class DominoScene {
     }
   }
 
+  _initMobileStairs() {
+    const stairConfig = CONFIG.scene.stairs?.mobile;
+    if (!stairConfig) return;
+
+    this.mobileStairs = new THREE.Group();
+    this.mobileStairs.name = 'mobileDominoStairs';
+
+    const stepMat = new THREE.MeshStandardMaterial({
+      color: 0x14171d,
+      roughness: 0.72,
+      metalness: 0.1,
+      envMapIntensity: 0.22,
+    });
+    const treadMat = new THREE.MeshStandardMaterial({
+      color: 0x22252d,
+      roughness: 0.66,
+      metalness: 0.08,
+      envMapIntensity: 0.26,
+    });
+    const lipMat = new THREE.MeshStandardMaterial({
+      color: 0xff6a2a,
+      emissive: 0xeb4710,
+      emissiveIntensity: 0.16,
+      roughness: 0.38,
+      metalness: 0.08,
+      envMapIntensity: 0.42,
+    });
+
+    [stepMat, treadMat, lipMat].forEach((mat) => {
+      mat.envMap = this._envMap;
+    });
+
+    this.mobileStairs.userData.materials = [stepMat, treadMat, lipMat];
+    this.mobileStairSteps = [];
+
+    for (let i = 0; i < CONFIG.dominoCount.mobile; i++) {
+      const step = new THREE.Group();
+      const block = new THREE.Mesh(
+        new THREE.BoxGeometry(stairConfig.stepWidth, stairConfig.stepHeight, stairConfig.stepDepth),
+        stepMat
+      );
+      block.receiveShadow = true;
+      block.castShadow = true;
+      step.add(block);
+
+      const tread = new THREE.Mesh(
+        new THREE.BoxGeometry(stairConfig.stepWidth * 0.98, 0.008, stairConfig.stepDepth * 0.92),
+        treadMat
+      );
+      tread.position.y = stairConfig.stepHeight / 2 + 0.004;
+      tread.receiveShadow = true;
+      step.add(tread);
+
+      const frontLip = new THREE.Mesh(
+        new THREE.BoxGeometry(stairConfig.stepWidth * 0.98, stairConfig.coralLipHeight, stairConfig.coralLipDepth),
+        lipMat
+      );
+      frontLip.position.set(
+        0,
+        stairConfig.stepHeight / 2 + stairConfig.coralLipHeight * 0.5,
+        stairConfig.stepDepth / 2 + stairConfig.coralLipDepth * 0.5
+      );
+      step.add(frontLip);
+
+      this.mobileStairs.add(step);
+      this.mobileStairSteps.push(step);
+    }
+
+    this.mobileStairs.visible = false;
+    this.compositionPivot.add(this.mobileStairs);
+  }
+
+  _positionMobileStairs(width = window.innerWidth) {
+    if (!this.mobileStairs || !this.mobileStairSteps) return;
+
+    const isMobile = this._getViewportTier(width) === 'mobile';
+    this.mobileStairs.visible = isMobile;
+    if (!isMobile) return;
+
+    const stairConfig = CONFIG.scene.stairs?.mobile;
+    const stepHeight = stairConfig?.stepHeight ?? 0.09;
+    const topInset = stairConfig?.topInset ?? 0.01;
+
+    this.mobileStairSteps.forEach((step, index) => {
+      const domino = this.dominoes[index];
+      if (!domino) {
+        step.visible = false;
+        return;
+      }
+
+      step.visible = true;
+      step.position.set(
+        0.02,
+        domino.root.position.y - stepHeight / 2 - topInset,
+        domino.root.position.z
+      );
+    });
+  }
+
   _getDominoCount(width = window.innerWidth) {
     const counts = CONFIG.dominoCount;
     return this._getViewportTier(width) === 'mobile' ? counts.mobile : counts.desktop;
@@ -271,6 +371,7 @@ export class DominoScene {
           centerDrift + screenLeftSign * mobileZigzagOffset * taper
         );
       });
+      this._positionMobileStairs(width);
       return;
     }
 
@@ -283,6 +384,7 @@ export class DominoScene {
       piece.root.scale.setScalar(scale);
       piece.root.position.set(0, rowY, startZ - index * spacing);
     });
+    this._positionMobileStairs(width);
   }
 
   _rebuildDominoesForWidth(width) {
@@ -454,12 +556,14 @@ export class DominoScene {
     const didRebuildRow = this._rebuildDominoesForWidth(w);
     const tier = this._getViewportTier(w);
     const scale = this.getDominoScale(w);
+    this.renderer.toneMappingExposure = tier === 'mobile' ? 1.12 : 1.03;
     this._applyTableLayout(w);
     this._positionDominoes(w);
 
     if (this.titlePlane) {
       const { plane } = CONFIG.title;
       const mobileTitle = tier === 'mobile' ? plane.mobile : null;
+      this.titlePlane.visible = tier !== 'mobile';
       this.titlePlane.scale.setScalar(mobileTitle?.scale ?? scale);
       this.titlePlane.position.set(
         mobileTitle?.x ?? plane.x,

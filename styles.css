@@ -2372,6 +2372,82 @@ section[id] {
       0 0 54px rgba(235, 71, 16, 0.16);
   }
 
+  .title-reveal {
+    position: absolute;
+    inset: 0.92rem 0.92rem auto;
+    z-index: 3;
+    width: auto;
+    height: auto;
+    max-width: none;
+    padding: 0.82rem 0.9rem 0.9rem;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+    border: 1px solid rgba(255, 184, 126, 0.18);
+    border-radius: 18px;
+    background:
+      linear-gradient(180deg, rgba(6, 7, 11, 0.82), rgba(10, 11, 16, 0.66)),
+      radial-gradient(circle at 50% 0%, rgba(255, 122, 51, 0.18), transparent 12rem);
+    color: #fff4e8;
+    text-align: center;
+    opacity: 0;
+    filter: blur(7px);
+    transform: translateY(-0.45rem) scale(0.98);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.08) inset,
+      0 16px 38px rgba(0, 0, 0, 0.28),
+      0 0 34px rgba(235, 71, 16, 0.14);
+    -webkit-backdrop-filter: blur(18px) saturate(1.14);
+    backdrop-filter: blur(18px) saturate(1.14);
+    transition:
+      opacity 0.52s ease,
+      filter 0.52s ease,
+      transform 0.52s cubic-bezier(0.2, 0.8, 0.2, 1);
+    pointer-events: none;
+  }
+
+  .title-reveal.is-visible,
+  .title-reveal.is-immediate {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0) scale(1);
+  }
+
+  .title-reveal__subtitle {
+    margin-bottom: 0.46rem;
+    color: rgba(255, 176, 111, 0.96);
+    font-size: clamp(0.7rem, 2.9vw, 0.82rem);
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    line-height: 1.2;
+    text-shadow: 0 0 18px rgba(235, 71, 16, 0.34);
+  }
+
+  .title-reveal__title {
+    font-size: clamp(2rem, 10.8vw, 3rem);
+    letter-spacing: -0.045em;
+    line-height: 0.96;
+    text-shadow:
+      0 2px 14px rgba(0, 0, 0, 0.42),
+      0 0 28px rgba(255, 122, 51, 0.12);
+  }
+
+  .title-reveal__first {
+    margin-bottom: 0.04em;
+    color: rgba(255, 244, 232, 0.96);
+    font-weight: 400;
+  }
+
+  .title-reveal__last {
+    color: #ff6b2b;
+    font-size: 1.04em;
+    letter-spacing: 0.015em;
+    text-shadow:
+      0 0 18px rgba(235, 71, 16, 0.42),
+      0 3px 16px rgba(0, 0, 0, 0.36);
+  }
+
   .stage::before {
     background-size: 34px 34px;
     opacity: 0.52;
@@ -2518,5 +2594,14 @@ section[id] {
 
   .stage {
     min-height: clamp(30.5rem, 71svh, 37rem);
+  }
+
+  .title-reveal {
+    inset-inline: 0.68rem;
+    padding-inline: 0.7rem;
+  }
+
+  .title-reveal__title {
+    font-size: clamp(1.82rem, 10.4vw, 2.55rem);
   }
 }

@@ -40,10 +40,10 @@ export const CONFIG = {
     /** Tighter row for phone screens with fewer dominoes */
     mobileSpacing: 0.62,
     mobileLayout: 'vertical-zigzag',
-    mobileVerticalSpacing: 0.36,
-    mobileVerticalCenterY: 0.42,
-    mobileZigzagOffset: 0.2,
-    scale: { desktop: 1, tablet: 0.92, mobile: 0.76 },
+    mobileVerticalSpacing: 0.38,
+    mobileVerticalCenterY: 0.3,
+    mobileZigzagOffset: 0.23,
+    scale: { desktop: 1, tablet: 0.92, mobile: 0.82 },
     /** Per-domino yaw, so the faces stay visible while side/depth still reads clearly */
     yawDeg: 64,
     /** Row root Y — keeps dominoes grounded in the lower foreground band. */
@@ -54,8 +54,8 @@ export const CONFIG = {
   camera: {
     desktop: { x: 0.86, y: 1.76, z: 5.85, lookY: 0.88 },
     tablet: { x: 0.68, y: 1.72, z: 6.05, lookY: 0.84 },
-    mobile: { x: 0.18, y: 1.76, z: 6.25, lookY: 1.14 },
-    fov: { desktop: 42, tablet: 45, mobile: 47 },
+    mobile: { x: 0.12, y: 1.46, z: 5.55, lookY: 0.44 },
+    fov: { desktop: 42, tablet: 45, mobile: 44 },
   },
 
   /** Animation timing (seconds) */
@@ -85,6 +85,16 @@ export const CONFIG = {
     },
     /** Rotates the whole domino/title composition around its center pivot */
     viewRotationDeg: -90,
+    stairs: {
+      mobile: {
+        stepHeight: 0.09,
+        stepWidth: 1.08,
+        stepDepth: 0.54,
+        coralLipHeight: 0.012,
+        coralLipDepth: 0.018,
+        topInset: 0.012,
+      },
+    },
   },
 
   /** 3D title plane + canvas texture layout (visual reveal above and behind domino row) */
@@ -99,23 +109,23 @@ export const CONFIG = {
       mobile: { x: -0.88, y: 2.72, scale: 0.78 },
     },
     canvas: {
-      width: 1024,
-      height: 448,
+      width: 1536,
+      height: 432,
       /** Vertical offsets from canvas center (px) */
-      subtitleY: -116,
-      firstY: -28,
-      lastY: 56,
-      ruleOffsetY: 46,
+      subtitleY: -112,
+      firstY: -30,
+      lastY: 58,
+      ruleOffsetY: 50,
     },
     typography: {
-      firstSize: 66,
-      lastSize: 88,
-      subtitleSize: 20,
-      firstLetterSpacing: '1.5px',
-      lastLetterSpacing: '3.2px',
-      subtitleLetterSpacing: '5.2px',
-      glowBlur: 18,
-      glowAlpha: 0.22,
+      firstSize: 78,
+      lastSize: 102,
+      subtitleSize: 23,
+      firstLetterSpacing: '1.8px',
+      lastLetterSpacing: '3.8px',
+      subtitleLetterSpacing: '5.8px',
+      glowBlur: 22,
+      glowAlpha: 0.26,
       ruleHeight: 2,
     },
   },
