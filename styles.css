@@ -128,16 +128,19 @@ body {
 
 .fuse-spark {
   --spark-angle: 0deg;
+  --spark-x: -100px;
+  --spark-y: -100px;
   position: fixed;
-  left: -100px;
-  top: -100px;
+  left: 0;
+  top: 0;
   z-index: 9;
   width: 1px;
   height: 1px;
   opacity: 0;
   pointer-events: none;
-  transform: translate3d(-50%, -50%, 0);
-  will-change: left, top, opacity;
+  transform: translate3d(var(--spark-x), var(--spark-y), 0) translate(-50%, -50%);
+  transition: none;
+  will-change: transform, opacity;
 }
 
 .fuse-spark.is-visible {
@@ -2390,6 +2393,10 @@ section[id] {
 }
 
 @media (max-width: 639px) {
+  body {
+    background-attachment: scroll;
+  }
+
   section[id] {
     scroll-margin-top: 5.5rem;
   }
@@ -2409,6 +2416,7 @@ section[id] {
   .fuse-overlay__burned {
     stroke-width: 4;
     opacity: 0.86;
+    filter: drop-shadow(0 0 8px rgba(255, 90, 31, 0.38));
   }
 
   .fuse-overlay__ember-trail {

@@ -172,20 +172,22 @@ initI18n();
     milestones: [],
     pathLength: 0,
     progress: 0,
+    targetProgress: 0,
+    targetDistance: 0,
+    displayedDistance: 0,
     sparkDistance: 0,
     sparkViewportPoint: { x: -100, y: -100 },
-    atMobileEnd: false,
-    mobileFrozenEndpoint: null,
-    mobileFrozenAngle: 0,
-    mobileEndScrollTop: 0,
-    mobileEndRearmScrollTop: 0,
-    mobileDeferredLayout: false,
-    mobileLastValidRoutePoint: null,
-    mobileLastValidEndPoint: null,
+    lastValidPoint: null,
     lastParticleAt: 0,
+    lastFrameAt: 0,
+    lastScrollAt: 0,
+    layoutWidth: 0,
+    layoutViewportHeight: 1,
+    maxScroll: 1,
     layoutRetryTimer: 0,
+    layoutTimer: 0,
+    animationFrame: 0,
     isScheduled: false,
-    isLayoutScheduled: false,
     isActive: false,
   };
 
@@ -200,14 +202,14 @@ initI18n();
   function getViewportMetrics() {
     const doc = document.documentElement;
     const visualViewport = window.visualViewport;
-    const width = visualViewport?.width || doc.clientWidth || window.innerWidth || 1;
-    const height = visualViewport?.height || window.innerHeight || doc.clientHeight || 1;
+    const width = doc.clientWidth || window.innerWidth || visualViewport?.width || 1;
+    const height = doc.clientHeight || window.innerHeight || visualViewport?.height || 1;
 
     return {
       width,
       height,
-      offsetLeft: visualViewport?.offsetLeft || 0,
-      offsetTop: visualViewport?.offsetTop || 0,
+      visibleWidth: visualViewport?.width || width,
+      visibleHeight: visualViewport?.height || height,
     };
   }
 
@@ -229,16 +231,20 @@ initI18n();
     return window.scrollY || window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
   }
 
+  function getClampedScrollY() {
+    return clamp(getScrollY(), 0, state.isActive ? state.maxScroll : Number.MAX_SAFE_INTEGER);
+  }
+
   function getSafeViewportBounds(margin = 24) {
     const viewport = getViewportMetrics();
 
     return {
-      minX: viewport.offsetLeft + margin,
-      maxX: viewport.offsetLeft + Math.max(viewport.width - margin, margin),
-      minY: viewport.offsetTop + margin,
-      maxY: viewport.offsetTop + Math.max(viewport.height - margin, margin),
-      width: viewport.width,
-      height: viewport.height,
+      minX: margin,
+      maxX: Math.max(viewport.visibleWidth - margin, margin),
+      minY: margin,
+      maxY: Math.max(viewport.visibleHeight - margin, margin),
+      width: viewport.visibleWidth,
+      height: viewport.visibleHeight,
     };
   }
 
@@ -269,7 +275,6 @@ initI18n();
       sparkDistance: Number(state.sparkDistance.toFixed(2)),
       sparkLeft: Number(state.sparkViewportPoint.x.toFixed(1)),
       sparkTop: Number(state.sparkViewportPoint.y.toFixed(1)),
-      atMobileEnd: state.atMobileEnd,
       sparkInViewport:
         state.sparkViewportPoint.x >= bounds.minX &&
         state.sparkViewportPoint.x <= bounds.maxX &&
@@ -285,25 +290,24 @@ initI18n();
 
     state.layoutRetryTimer = window.setTimeout(() => {
       state.layoutRetryTimer = 0;
-      scheduleLayout();
-    }, 120);
+      scheduleLayout(180);
+    }, 180);
   }
 
   function setReducedMotionState() {
     document.documentElement.classList.remove('fuse-ready');
     overlay.hidden = true;
     state.isActive = false;
-    state.atMobileEnd = false;
-    state.mobileFrozenEndpoint = null;
-    state.mobileEndScrollTop = 0;
-    state.mobileEndRearmScrollTop = 0;
-    state.mobileDeferredLayout = false;
     igniteAll();
     writeSelfCheck();
-    window.removeEventListener('scroll', scheduleUpdate);
-    window.removeEventListener('resize', scheduleLayout);
-    window.visualViewport?.removeEventListener('resize', scheduleLayout);
-    window.visualViewport?.removeEventListener('scroll', scheduleUpdate);
+    window.removeEventListener('scroll', handleScroll);
+    window.removeEventListener('resize', handleViewportResize);
+    window.removeEventListener('orientationchange', handleOrientationChange);
+    window.visualViewport?.removeEventListener('resize', scheduleUpdate);
+    window.clearTimeout(state.layoutTimer);
+    cancelAnimationFrame(state.animationFrame);
+    state.animationFrame = 0;
+    state.isScheduled = false;
   }
 
   function getAnchorPoint(anchor, section) {
@@ -318,14 +322,14 @@ initI18n();
 
     if (isMobileFuseLayout()) {
       return {
-        x: scrollX + viewport.offsetLeft + getMobileRailViewportX(),
+        x: scrollX + getMobileRailViewportX(),
         y: anchorTop + scrollY + anchorHeight * 0.52,
       };
     }
 
     const railOffset = viewport.width < 760 ? 18 : 38;
-    const minX = scrollX + viewport.offsetLeft + 18;
-    const maxX = scrollX + viewport.offsetLeft + Math.max(viewport.width - 18, 18);
+    const minX = scrollX + 18;
+    const maxX = scrollX + Math.max(viewport.width - 18, 18);
     const preferredX = rect.left + scrollX - railOffset;
 
     return {
@@ -400,25 +404,6 @@ initI18n();
     }).filter((sample) => Number.isFinite(sample.x) && Number.isFinite(sample.y));
   }
 
-  function getRouteEndPoint() {
-    const lastSample = state.routeSamples[state.routeSamples.length - 1];
-    if (isFinitePoint(lastSample)) return lastSample;
-
-    const lastPoint = state.points[state.points.length - 1];
-    return isFinitePoint(lastPoint) ? lastPoint : null;
-  }
-
-  function rememberMobileRoutePoint(point, isEndPoint = false) {
-    if (state.atMobileEnd || !isMobileFuseLayout() || !isFinitePoint(point)) return;
-
-    const routePoint = { x: point.x, y: point.y };
-    state.mobileLastValidRoutePoint = routePoint;
-
-    if (isEndPoint) {
-      state.mobileLastValidEndPoint = routePoint;
-    }
-  }
-
   function setBurnProgress(sparkDistance) {
     const dashOffset = Math.max(state.pathLength - sparkDistance, 0);
 
@@ -429,22 +414,6 @@ initI18n();
   }
 
   function layoutFuse() {
-    state.isLayoutScheduled = false;
-
-    if (state.atMobileEnd) {
-      if (isMobileFuseLayout()) {
-        state.mobileDeferredLayout = true;
-        updateFuse();
-        return;
-      }
-
-      state.atMobileEnd = false;
-      state.mobileFrozenEndpoint = null;
-      state.mobileEndScrollTop = 0;
-      state.mobileEndRearmScrollTop = 0;
-      state.mobileDeferredLayout = false;
-    }
-
     state.sections = getFuseSections();
 
     if (reducedMotionQuery.matches) {
@@ -465,6 +434,9 @@ initI18n();
     const body = document.body;
     const docWidth = Math.max(doc.clientWidth, doc.scrollWidth, body.scrollWidth);
     const docHeight = Math.max(doc.scrollHeight, body.scrollHeight, window.innerHeight);
+    const previousProgress = state.pathLength > 0
+      ? clamp(state.displayedDistance / state.pathLength, 0, 1)
+      : getScrollProgress();
 
     overlay.style.setProperty('--fuse-doc-height', `${docHeight}px`);
     svg.setAttribute('viewBox', `0 0 ${docWidth} ${docHeight}`);
@@ -494,50 +466,32 @@ initI18n();
 
     buildRouteSamples();
     state.milestones = calculateMilestones(state.points);
-    rememberMobileRoutePoint(getRouteEndPoint(), true);
+    state.layoutWidth = doc.clientWidth || window.innerWidth || 1;
+    state.layoutViewportHeight = doc.clientHeight || window.innerHeight || 1;
+    state.maxScroll = Math.max(docHeight - state.layoutViewportHeight, 1);
+    state.displayedDistance = clamp(previousProgress * state.pathLength, 0, state.pathLength);
+    state.targetDistance = state.displayedDistance;
+    state.lastValidPoint = null;
+    state.lastFrameAt = 0;
     state.isActive = true;
     overlay.hidden = false;
     document.documentElement.classList.add('fuse-ready');
-    updateFuse();
-  }
-
-  function getMobileScrollState() {
-    const doc = document.documentElement;
-    const body = document.body;
-    const scrollHeight = Math.max(doc.scrollHeight, body.scrollHeight);
-    const viewport = getViewportMetrics();
-    const scrollingElement = document.scrollingElement || doc;
-    const mobileScrollHeight = Math.max(scrollingElement.scrollHeight || 0, scrollHeight);
-    const viewportHeight = scrollingElement.clientHeight || doc.clientHeight || window.innerHeight || viewport.height || 1;
-    const maxScroll = Math.max(mobileScrollHeight - viewportHeight, 1);
-    const rawScrollTop = getScrollY();
-    const scrollTop = clamp(rawScrollTop, 0, maxScroll);
-    const isAtDocumentEnd = scrollTop >= maxScroll - 2 || rawScrollTop + viewportHeight >= mobileScrollHeight - 2;
-
-    return {
-      progress: isAtDocumentEnd ? 1 : clamp(scrollTop / maxScroll, 0, 1),
-      rawScrollTop,
-      scrollTop,
-      maxScroll,
-      isAtDocumentEnd,
-    };
+    scheduleUpdate();
   }
 
   function getScrollProgress() {
     const doc = document.documentElement;
     const body = document.body;
     const scrollHeight = Math.max(doc.scrollHeight, body.scrollHeight);
-    const viewport = getViewportMetrics();
+    const viewportHeight = doc.clientHeight || window.innerHeight || 1;
+    const measuredMaxScroll = Math.max(scrollHeight - viewportHeight, 1);
+    const maxScroll = state.isActive ? state.maxScroll : measuredMaxScroll;
+    const rawScrollTop = getScrollY();
+    const scrollTop = clamp(rawScrollTop, 0, maxScroll);
 
-    if (isMobileFuseLayout()) {
-      return getMobileScrollState().progress;
-    }
-
-    const viewportHeight = viewport.height || window.innerHeight || doc.clientHeight || 1;
-    const maxScroll = Math.max(scrollHeight - viewportHeight, 1);
-    const scrollTop = getScrollY();
-
-    return clamp(scrollTop / maxScroll, 0, 1);
+    return rawScrollTop >= measuredMaxScroll - 2
+      ? 1
+      : clamp(scrollTop / maxScroll, 0, 1);
   }
 
   function getRouteDistanceForViewport(progress) {
@@ -545,12 +499,14 @@ initI18n();
       return clamp(progress * state.pathLength, 0, state.pathLength);
     }
 
-    const viewport = getViewportMetrics();
     const firstSample = state.routeSamples[0];
     const lastSample = state.routeSamples[state.routeSamples.length - 1];
-    const visibleTop = getScrollY() + viewport.offsetTop;
+    if (progress <= 0.001) return 0;
+    if (progress >= 0.999) return state.pathLength;
+
+    const visibleTop = progress * state.maxScroll;
     const targetY = clamp(
-      visibleTop + viewport.height * 0.46,
+      visibleTop + state.layoutViewportHeight * 0.46,
       Math.min(firstSample.y, lastSample.y),
       Math.max(firstSample.y, lastSample.y)
     );
@@ -603,36 +559,18 @@ initI18n();
     const viewport = getViewportMetrics();
 
     return {
-      x: getScrollX() + viewport.offsetLeft + viewport.width * (0.18 + 0.64 * progress),
-      y: getScrollY() + viewport.offsetTop + viewport.height * (0.2 + 0.6 * progress),
+      x: getScrollX() + viewport.width * (0.18 + 0.64 * progress),
+      y: getScrollY() + viewport.height * (0.2 + 0.6 * progress),
     };
   }
 
   function toViewportPoint(point, progress) {
-    let sourcePoint = isFinitePoint(point) ? point : null;
-
-    if (!sourcePoint && isMobileFuseLayout()) {
-      sourcePoint = state.mobileLastValidRoutePoint || state.mobileLastValidEndPoint || getRouteEndPoint();
-    }
-
-    sourcePoint = sourcePoint || getFallbackSparkPoint(progress);
-    const bounds = getSafeViewportBounds();
-
-    const viewportPoint = {
-      x: sourcePoint.x - getScrollX(),
-      y: sourcePoint.y - getScrollY(),
-    };
-
-    if (isMobileFuseLayout()) {
-      return {
-        x: clamp(getMobileRailViewportX() + getViewportMetrics().offsetLeft, bounds.minX, bounds.maxX),
-        y: clamp(viewportPoint.y, bounds.minY, bounds.maxY),
-      };
-    }
-
+    const sourcePoint = isFinitePoint(point)
+      ? point
+      : state.lastValidPoint || getFallbackSparkPoint(progress);
     return {
-      x: clamp(viewportPoint.x, bounds.minX, bounds.maxX),
-      y: clamp(viewportPoint.y, bounds.minY, bounds.maxY),
+      x: sourcePoint.x - getScrollX(),
+      y: sourcePoint.y - getClampedScrollY(),
     };
   }
 
@@ -640,16 +578,15 @@ initI18n();
     state.sections.forEach(({ section }, index) => {
       const milestone = state.milestones[index] ?? Number.POSITIVE_INFINITY;
       const tolerance = Math.max(state.pathLength * 0.006, 8);
+      const shouldIgnite = sparkDistance + tolerance >= milestone;
+      const wasIgnited = section.classList.contains('is-ignited');
 
-      if (sparkDistance + tolerance >= milestone) {
-        const wasIgnited = section.classList.contains('is-ignited');
-
-        section.classList.add('is-ignited');
-
-        if (!wasIgnited) {
-          section.classList.add('is-igniting');
-          window.setTimeout(() => section.classList.remove('is-igniting'), 900);
-        }
+      section.classList.toggle('is-ignited', shouldIgnite);
+      if (shouldIgnite && !wasIgnited) {
+        section.classList.add('is-igniting');
+        window.setTimeout(() => section.classList.remove('is-igniting'), 900);
+      } else if (!shouldIgnite) {
+        section.classList.remove('is-igniting');
       }
     });
   }
@@ -681,42 +618,25 @@ initI18n();
     state.sparkViewportPoint = viewportPoint;
     spark.classList.add('is-visible');
     spark.style.setProperty('--spark-angle', `${angle}rad`);
-    spark.style.left = `${viewportPoint.x.toFixed(1)}px`;
-    spark.style.top = `${viewportPoint.y.toFixed(1)}px`;
+    spark.style.setProperty('--spark-x', `${viewportPoint.x.toFixed(1)}px`);
+    spark.style.setProperty('--spark-y', `${viewportPoint.y.toFixed(1)}px`);
   }
 
   function updateSpark(point, angle, progress) {
     setSparkViewportPoint(toViewportPoint(point, progress), angle);
   }
 
-  function lockMobileEnd(point, angle, mobileScrollState) {
-    const endPoint = isFinitePoint(point)
-      ? point
-      : getRouteEndPoint() || state.mobileLastValidEndPoint || state.mobileLastValidRoutePoint;
-
-    if (!isFinitePoint(endPoint)) return;
-
-    rememberMobileRoutePoint(endPoint, true);
-    state.atMobileEnd = true;
-    state.mobileFrozenEndpoint = toViewportPoint(endPoint, 1);
-    state.mobileFrozenAngle = angle;
-    state.mobileEndScrollTop = mobileScrollState?.scrollTop ?? getScrollY();
-    state.mobileEndRearmScrollTop = 0;
-  }
-
-  function unlockMobileEnd(rearmScrollTop = 0) {
-    state.atMobileEnd = false;
-    state.mobileFrozenEndpoint = null;
-    state.mobileEndScrollTop = 0;
-    state.mobileEndRearmScrollTop = rearmScrollTop;
-
-    if (state.mobileDeferredLayout) {
-      state.mobileDeferredLayout = false;
-      scheduleLayout();
+  function getPathPoint(distance) {
+    try {
+      const point = ropePath.getPointAtLength(clamp(distance, 0, state.pathLength));
+      return isFinitePoint(point) ? point : null;
+    } catch {
+      return null;
     }
   }
 
-  function updateFuse() {
+  function updateFuse(now = performance.now()) {
+    state.animationFrame = 0;
     state.isScheduled = false;
 
     if (!state.isActive || state.pathLength <= 0) {
@@ -724,118 +644,67 @@ initI18n();
       return;
     }
 
-    const isMobile = isMobileFuseLayout();
-    const mobileScrollState = isMobile ? getMobileScrollState() : null;
-    const progress = mobileScrollState?.progress ?? getScrollProgress();
+    const progress = getScrollProgress();
+    state.targetProgress = progress;
+    state.targetDistance = clamp(getRouteDistanceForViewport(progress), 0, state.pathLength);
 
-    if (!isMobile && state.atMobileEnd) {
-      unlockMobileEnd();
-    }
+    const dt = state.lastFrameAt > 0 ? Math.min((now - state.lastFrameAt) / 1000, 0.05) : 0.05;
+    const alpha = 1 - Math.exp(-22 * dt);
+    const maxLag = Math.max(28, state.pathLength * 0.012);
+    let displayedDistance = state.displayedDistance
+      + (state.targetDistance - state.displayedDistance) * alpha;
 
-    if (isMobile && state.atMobileEnd && mobileScrollState) {
-      if (mobileScrollState.scrollTop > state.mobileEndScrollTop) {
-        state.mobileEndScrollTop = mobileScrollState.scrollTop;
+    if (progress <= 0.001 || progress >= 0.999) {
+      displayedDistance = state.targetDistance;
+    } else {
+      displayedDistance = clamp(
+        displayedDistance,
+        state.targetDistance - maxLag,
+        state.targetDistance + maxLag
+      );
+
+      if (Math.abs(state.targetDistance - displayedDistance) < 0.35) {
+        displayedDistance = state.targetDistance;
       }
     }
 
-    if (
-      isMobile &&
-      state.atMobileEnd &&
-      mobileScrollState &&
-      state.mobileEndScrollTop - mobileScrollState.scrollTop > 32
-    ) {
-      unlockMobileEnd(state.mobileEndScrollTop);
-    }
+    const sparkDistance = clamp(displayedDistance, 0, state.pathLength);
+    const tangentStep = state.targetDistance < state.displayedDistance ? -2 : 2;
+    let point = getPathPoint(sparkDistance);
+    let nextPoint = getPathPoint(sparkDistance + tangentStep);
 
-    if (isMobile && state.atMobileEnd && isFinitePoint(state.mobileFrozenEndpoint)) {
-      state.progress = 1;
-      state.sparkDistance = state.pathLength;
-      overlay.style.setProperty('--fuse-progress', '1.0000');
-      setBurnProgress(state.pathLength);
-      setSparkViewportPoint(state.mobileFrozenEndpoint, state.mobileFrozenAngle);
-      setIgnitedSections(state.pathLength);
-      writeSelfCheck();
-      return;
-    }
-
-    const routeDistance = clamp(getRouteDistanceForViewport(progress), 0, state.pathLength);
-    const canLockMobileEnd =
-      !isMobile ||
-      state.mobileEndRearmScrollTop <= 0 ||
-      mobileScrollState?.isAtDocumentEnd ||
-      (mobileScrollState && mobileScrollState.scrollTop >= state.mobileEndRearmScrollTop - 2);
-    const mobileAtEnd = isMobile && canLockMobileEnd && (
-      progress >= 0.995 ||
-      mobileScrollState?.isAtDocumentEnd ||
-      routeDistance >= state.pathLength - 1
-    );
-    const sparkDistance = mobileAtEnd ? state.pathLength : routeDistance;
-    let point = ropePath.getPointAtLength(sparkDistance);
-    let nextPoint = ropePath.getPointAtLength(clamp(sparkDistance + (mobileAtEnd ? -2 : 2), 0, state.pathLength));
-
-    if (isMobile && mobileAtEnd) {
-      const endPoint = getRouteEndPoint() || state.mobileLastValidEndPoint;
-      const previousPoint = nextPoint;
-
-      if (isFinitePoint(endPoint)) {
-        point = endPoint;
-        nextPoint = isFinitePoint(previousPoint)
-          ? previousPoint
-          : state.mobileLastValidRoutePoint || endPoint;
-      }
-    }
-
-    if (
-      !isFinitePoint(point) ||
-      !isFinitePoint(nextPoint)
-    ) {
-      if (isMobile) {
-        const mobileFallbackPoint = mobileAtEnd
-          ? state.mobileLastValidEndPoint || getRouteEndPoint() || state.mobileLastValidRoutePoint
-          : state.mobileLastValidRoutePoint || getRouteEndPoint() || state.mobileLastValidEndPoint;
-
-        point = mobileFallbackPoint || getFallbackSparkPoint(progress);
-        nextPoint = point;
-      } else {
-        point = getFallbackSparkPoint(progress);
-        nextPoint = getFallbackSparkPoint(clamp(progress + 0.002, 0, 1));
-      }
-
+    if (!isFinitePoint(point)) {
+      point = state.lastValidPoint || getFallbackSparkPoint(progress);
       queueLayoutRetry();
     }
+    if (!isFinitePoint(nextPoint)) nextPoint = point;
+    if (isFinitePoint(point)) state.lastValidPoint = { x: point.x, y: point.y };
 
-    const angle = mobileAtEnd
-      ? Math.atan2(point.y - nextPoint.y, point.x - nextPoint.x)
-      : Math.atan2(nextPoint.y - point.y, nextPoint.x - point.x);
-    const now = performance.now();
-    const displayProgress = mobileAtEnd ? 1 : progress;
+    const angle = Math.atan2(nextPoint.y - point.y, nextPoint.x - point.x);
+    const displayProgress = state.pathLength > 0 ? sparkDistance / state.pathLength : progress;
 
-    rememberMobileRoutePoint(point, mobileAtEnd || sparkDistance >= state.pathLength - 1);
-
-    if (mobileAtEnd) {
-      lockMobileEnd(point, angle, mobileScrollState);
-    }
-
+    state.lastFrameAt = now;
+    state.displayedDistance = sparkDistance;
     state.progress = displayProgress;
     state.sparkDistance = sparkDistance;
     overlay.style.setProperty('--fuse-progress', displayProgress.toFixed(4));
     setBurnProgress(sparkDistance);
-    if (mobileAtEnd && isFinitePoint(state.mobileFrozenEndpoint)) {
-      setSparkViewportPoint(state.mobileFrozenEndpoint, state.mobileFrozenAngle);
-    } else {
-      updateSpark(point, angle, progress);
-    }
+    updateSpark(point, angle, displayProgress);
     setIgnitedSections(sparkDistance);
     writeSelfCheck();
 
-    if (now - state.lastParticleAt > 95 && progress > 0.01 && progress < 0.995) {
+    if (now - state.lastParticleAt > (isMobileFuseLayout() ? 150 : 100) && progress > 0.01 && progress < 0.995) {
       emitParticle('ember', point, angle);
 
-      if (Math.random() > 0.45) {
+      if (!isMobileFuseLayout() && Math.random() > 0.55) {
         emitParticle('smoke', point, angle);
       }
 
       state.lastParticleAt = now;
+    }
+
+    if (Math.abs(state.targetDistance - state.displayedDistance) >= 0.35) {
+      scheduleUpdate();
     }
   }
 
@@ -843,32 +712,51 @@ initI18n();
     if (state.isScheduled) return;
 
     state.isScheduled = true;
-    requestAnimationFrame(updateFuse);
+    state.animationFrame = requestAnimationFrame(updateFuse);
   }
 
-  function scheduleLayout() {
-    if (state.isLayoutScheduled) return;
+  function handleScroll() {
+    state.lastScrollAt = performance.now();
+    scheduleUpdate();
+  }
 
-    if (state.atMobileEnd && isMobileFuseLayout()) {
-      state.mobileDeferredLayout = true;
-      return;
+  function scheduleLayout(delay = 180) {
+    window.clearTimeout(state.layoutTimer);
+    state.layoutTimer = window.setTimeout(() => {
+      const scrollAge = performance.now() - state.lastScrollAt;
+      if (scrollAge < 140) {
+        scheduleLayout(160);
+        return;
+      }
+      state.layoutTimer = 0;
+      layoutFuse();
+    }, delay);
+  }
+
+  function handleViewportResize() {
+    const width = document.documentElement.clientWidth || window.innerWidth || 1;
+    if (Math.abs(width - state.layoutWidth) > 2) {
+      scheduleLayout(240);
+    } else {
+      scheduleUpdate();
     }
+  }
 
-    state.isLayoutScheduled = true;
-    requestAnimationFrame(layoutFuse);
+  function handleOrientationChange() {
+    scheduleLayout(280);
   }
 
   function activateFuse() {
     if (reducedMotionQuery.matches) return;
 
-    window.removeEventListener('scroll', scheduleUpdate);
-    window.removeEventListener('resize', scheduleLayout);
-    window.visualViewport?.removeEventListener('resize', scheduleLayout);
-    window.visualViewport?.removeEventListener('scroll', scheduleUpdate);
-    window.addEventListener('scroll', scheduleUpdate, { passive: true });
-    window.addEventListener('resize', scheduleLayout);
-    window.visualViewport?.addEventListener('resize', scheduleLayout);
-    window.visualViewport?.addEventListener('scroll', scheduleUpdate, { passive: true });
+    window.removeEventListener('scroll', handleScroll);
+    window.removeEventListener('resize', handleViewportResize);
+    window.removeEventListener('orientationchange', handleOrientationChange);
+    window.visualViewport?.removeEventListener('resize', scheduleUpdate);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', handleViewportResize);
+    window.addEventListener('orientationchange', handleOrientationChange);
+    window.visualViewport?.addEventListener('resize', scheduleUpdate, { passive: true });
     layoutFuse();
   }
 
