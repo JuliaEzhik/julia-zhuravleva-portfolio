@@ -135,6 +135,7 @@ body {
   width: 1px;
   height: 1px;
   opacity: 0;
+  pointer-events: none;
   transform: translate3d(-50%, -50%, 0);
   will-change: left, top, opacity;
 }
@@ -986,6 +987,8 @@ section[id] {
   border: 1px solid var(--panel-border);
   border-radius: var(--panel-radius);
   overflow: hidden;
+  overflow: clip;
+  touch-action: pan-y;
   background:
     radial-gradient(circle at 12% 0%, rgba(255, 90, 31, 0.14), transparent 22rem),
     radial-gradient(circle at 86% 18%, rgba(255, 154, 85, 0.08), transparent 24rem),
@@ -1058,6 +1061,7 @@ section[id] {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: clamp(1rem, 2.4vw, 1.35rem);
+  touch-action: pan-y;
 }
 
 .project-card {
@@ -1069,6 +1073,9 @@ section[id] {
   border: 1px solid rgba(255, 154, 85, 0.14);
   border-radius: 24px;
   overflow: hidden;
+  overflow: clip;
+  touch-action: pan-y;
+  -webkit-touch-callout: none;
   background:
     linear-gradient(145deg, rgba(255, 255, 255, 0.06), transparent 28%),
     linear-gradient(180deg, rgba(18, 20, 27, 0.94), rgba(8, 9, 13, 0.96));
@@ -1103,15 +1110,6 @@ section[id] {
   border-radius: 50%;
   background: radial-gradient(circle, rgba(255, 90, 31, 0.16), transparent 58%);
   pointer-events: none;
-}
-
-.project-card:hover {
-  transform: translateY(-6px);
-  border-color: rgba(255, 122, 51, 0.42);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.08) inset,
-    0 28px 76px rgba(0, 0, 0, 0.44),
-    0 0 36px rgba(235, 71, 16, 0.14);
 }
 
 .project-card--accent::before {
@@ -1208,18 +1206,13 @@ section[id] {
   transition:
     box-shadow 0.2s ease,
     transform 0.18s ease;
+  touch-action: pan-y;
+  -webkit-touch-callout: none;
 }
 
 .project-card__link::after {
   content: "↗";
   font-size: 0.86rem;
-}
-
-.project-card__link:hover {
-  transform: translateY(-2px);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.18) inset,
-    0 16px 34px rgba(235, 71, 16, 0.34);
 }
 
 .project-card__link:focus-visible {
@@ -1310,6 +1303,31 @@ section[id] {
 @media (hover: hover) and (pointer: fine) {
   .screen-card:hover .screen-card__device {
     transform: scale(1.018);
+  }
+
+  .project-card:hover {
+    transform: translateY(-6px);
+    border-color: rgba(255, 122, 51, 0.42);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.08) inset,
+      0 28px 76px rgba(0, 0, 0, 0.44),
+      0 0 36px rgba(235, 71, 16, 0.14);
+  }
+
+  .project-card__link:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.18) inset,
+      0 16px 34px rgba(235, 71, 16, 0.34);
+  }
+
+  .laptop-preview-card__link:hover .laptop-frame {
+    transform: translateY(-4px);
+    border-color: rgba(255, 122, 51, 0.38);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.14) inset,
+      0 28px 68px rgba(0, 0, 0, 0.46),
+      0 0 38px rgba(235, 71, 16, 0.14);
   }
 }
 
@@ -1408,6 +1426,9 @@ section[id] {
   display: block;
   color: inherit;
   text-decoration: none;
+  touch-action: pan-y;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .laptop-preview-card__link:focus-visible {
@@ -1433,15 +1454,6 @@ section[id] {
     border-color 0.24s ease,
     box-shadow 0.24s ease,
     transform 0.24s ease;
-}
-
-.laptop-preview-card__link:hover .laptop-frame {
-  transform: translateY(-4px);
-  border-color: rgba(255, 122, 51, 0.38);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.14) inset,
-    0 28px 68px rgba(0, 0, 0, 0.46),
-    0 0 38px rgba(235, 71, 16, 0.14);
 }
 
 .laptop-frame__screen {
@@ -2610,11 +2622,11 @@ section[id] {
     position: relative;
     max-width: none;
     width: 100%;
-    overflow-x: auto;
+    overflow-x: scroll;
     overflow-y: hidden;
     overscroll-behavior-x: contain;
     scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
+    -webkit-overflow-scrolling: auto;
     scroll-behavior: auto;
     touch-action: pan-x pan-y;
   }
@@ -2652,6 +2664,7 @@ section[id] {
     padding: 0 0 0.7rem;
     align-items: start;
     touch-action: pan-x pan-y;
+    pointer-events: none;
   }
 
   .screen-card,
@@ -2662,12 +2675,14 @@ section[id] {
     margin-top: 0;
     justify-self: auto;
     touch-action: pan-x pan-y;
+    pointer-events: none;
   }
 
   .screen-card__device,
   .screen-card__screen,
   .screen-card__screen > img {
     touch-action: pan-x pan-y;
+    pointer-events: none;
   }
 
   .screen-card--clone {
@@ -2682,6 +2697,13 @@ section[id] {
   .laptop-preview-grid {
     gap: 0.9rem;
     margin-top: 1.5rem;
+  }
+
+  .laptop-preview-card,
+  .laptop-preview-card__link,
+  .laptop-frame {
+    touch-action: pan-y;
+    -webkit-touch-callout: none;
   }
 
   .laptop-frame {
@@ -2712,6 +2734,14 @@ section[id] {
   .project-card {
     min-height: 0;
     border-radius: 18px;
+    transform: none;
+    touch-action: pan-y;
+    -webkit-touch-callout: none;
+  }
+
+  .project-card__link {
+    touch-action: pan-y;
+    -webkit-touch-callout: none;
   }
 
   .project-card__meta {
