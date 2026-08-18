@@ -906,6 +906,248 @@ initI18n();
 })();
 
 /**
+ * Phone gallery marquee — auto-scrolls on small screens, pauses for native swipe.
+ */
+(function initGalleryMarquee() {
+  'use strict';
+
+  const viewport = document.querySelector('.screen-gallery__viewport');
+  const track = document.querySelector('.screen-gallery__grid');
+
+  if (!(viewport instanceof HTMLElement) || !(track instanceof HTMLElement)) {
+    return;
+  }
+
+  const mobileQuery = window.matchMedia('(max-width: 639px)');
+  const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const SPEED_PX_PER_SEC = 32;
+  const RESUME_DELAY_MS = 1600;
+
+  let interacting = false;
+  let inView = true;
+  let wrapping = false;
+  let resumeTimer = 0;
+  let rafId = 0;
+  let lastTime = 0;
+  let loopWidth = 0;
+
+  function isMarqueeEnabled() {
+    return mobileQuery.matches && !reducedMotionQuery.matches;
+  }
+
+  function hardenImages() {
+    track.querySelectorAll('img').forEach((image) => {
+      image.draggable = false;
+      image.setAttribute('draggable', 'false');
+    });
+  }
+
+  function removeClones() {
+    track.querySelectorAll('.screen-card--clone').forEach((clone) => clone.remove());
+    loopWidth = 0;
+  }
+
+  function ensureClones() {
+    if (!isMarqueeEnabled()) {
+      removeClones();
+      return;
+    }
+
+    if (track.querySelector('.screen-card--clone')) {
+      measureLoop();
+      return;
+    }
+
+    const originals = Array.from(track.querySelectorAll('.screen-card'));
+
+    originals.forEach((card) => {
+      const clone = card.cloneNode(true);
+
+      if (!(clone instanceof HTMLElement)) return;
+
+      clone.classList.add('screen-card--clone');
+      clone.setAttribute('aria-hidden', 'true');
+      clone.querySelectorAll('[id]').forEach((node) => node.removeAttribute('id'));
+      clone.querySelectorAll('img').forEach((image) => {
+        image.alt = '';
+        image.removeAttribute('data-i18n-alt');
+        image.draggable = false;
+        image.setAttribute('draggable', 'false');
+        image.addEventListener('load', measureLoop, { once: true });
+      });
+      track.appendChild(clone);
+    });
+
+    measureLoop();
+    requestAnimationFrame(measureLoop);
+  }
+
+  function measureLoop() {
+    const first = track.querySelector('.screen-card:not(.screen-card--clone)');
+    const clone = track.querySelector('.screen-card--clone');
+
+    if (
+      !(first instanceof HTMLElement) ||
+      !(clone instanceof HTMLElement) ||
+      clone.offsetWidth <= 0
+    ) {
+      loopWidth = 0;
+      return;
+    }
+
+    loopWidth = Math.round(clone.getBoundingClientRect().left - first.getBoundingClientRect().left);
+  }
+
+  function wrapScroll() {
+    if (loopWidth <= 1) return;
+
+    if (viewport.scrollLeft >= loopWidth - 0.5) {
+      wrapping = true;
+      viewport.scrollLeft -= loopWidth;
+      wrapping = false;
+    }
+  }
+
+  function pause() {
+    interacting = true;
+    viewport.classList.add('is-paused');
+    window.clearTimeout(resumeTimer);
+  }
+
+  function scheduleResume() {
+    window.clearTimeout(resumeTimer);
+    resumeTimer = window.setTimeout(() => {
+      interacting = false;
+      viewport.classList.remove('is-paused');
+      lastTime = performance.now();
+    }, RESUME_DELAY_MS);
+  }
+
+  function tick(now) {
+    rafId = requestAnimationFrame(tick);
+
+    if (!isMarqueeEnabled() || interacting || !inView || document.hidden) {
+      lastTime = now;
+      return;
+    }
+
+    if (loopWidth <= 1) {
+      measureLoop();
+      lastTime = now;
+      return;
+    }
+
+    const dt = Math.min(0.05, (now - lastTime) / 1000);
+    lastTime = now;
+    viewport.scrollLeft += SPEED_PX_PER_SEC * dt;
+    wrapScroll();
+  }
+
+  function startLoop() {
+    if (rafId) return;
+    lastTime = performance.now();
+    rafId = requestAnimationFrame(tick);
+  }
+
+  function stopLoop() {
+    if (!rafId) return;
+    cancelAnimationFrame(rafId);
+    rafId = 0;
+  }
+
+  function syncMode() {
+    interacting = false;
+    viewport.classList.remove('is-paused');
+    window.clearTimeout(resumeTimer);
+    ensureClones();
+    hardenImages();
+
+    if (isMarqueeEnabled()) {
+      startLoop();
+    } else {
+      stopLoop();
+      viewport.scrollLeft = 0;
+    }
+  }
+
+  function bindRelease(event) {
+    const pointerId = event.pointerId;
+    const end = (releaseEvent) => {
+      if (releaseEvent.pointerId !== undefined && releaseEvent.pointerId !== pointerId) {
+        return;
+      }
+      scheduleResume();
+      window.removeEventListener('pointerup', end);
+      window.removeEventListener('pointercancel', end);
+    };
+
+    window.addEventListener('pointerup', end);
+    window.addEventListener('pointercancel', end);
+  }
+
+  viewport.addEventListener('pointerdown', (event) => {
+    if (!mobileQuery.matches) return;
+    pause();
+    bindRelease(event);
+  });
+  viewport.addEventListener('touchstart', () => {
+    if (!mobileQuery.matches) return;
+    pause();
+  }, { passive: true });
+  viewport.addEventListener('touchend', () => {
+    if (!mobileQuery.matches) return;
+    scheduleResume();
+  }, { passive: true });
+  viewport.addEventListener('touchcancel', () => {
+    if (!mobileQuery.matches) return;
+    scheduleResume();
+  }, { passive: true });
+  viewport.addEventListener('keydown', () => {
+    if (!mobileQuery.matches) return;
+    pause();
+  });
+  viewport.addEventListener('keyup', () => {
+    if (!mobileQuery.matches) return;
+    scheduleResume();
+  });
+
+  viewport.addEventListener('wheel', () => {
+    if (!mobileQuery.matches) return;
+    pause();
+    scheduleResume();
+  }, { passive: true });
+
+  viewport.addEventListener('scroll', () => {
+    if (wrapping) return;
+    wrapScroll();
+  }, { passive: true });
+
+  if ('IntersectionObserver' in window) {
+    const observer = new IntersectionObserver((entries) => {
+      inView = entries.some((entry) => entry.isIntersecting);
+    }, { threshold: 0.12 });
+    observer.observe(viewport);
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      lastTime = performance.now();
+    }
+  });
+
+  track.querySelectorAll('img').forEach((image) => {
+    image.addEventListener('load', measureLoop, { once: true });
+  });
+
+  window.addEventListener('resize', measureLoop);
+  mobileQuery.addEventListener('change', syncMode);
+  reducedMotionQuery.addEventListener('change', syncMode);
+
+  hardenImages();
+  syncMode();
+})();
+
+/**
  * Contact form — validates input and sends via FormSubmit.co (AJAX).
  */
 (function initContactForm() {
