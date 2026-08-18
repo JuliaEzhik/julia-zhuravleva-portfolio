@@ -77,24 +77,24 @@ export class DominoPiece {
       color: ivory,
       map: getBoneTexture(),
       bumpMap: getBoneBumpTexture(),
-      bumpScale: 0.007,
-      roughness: 0.38,
+      bumpScale: 0.0035,
+      roughness: 0.42,
       metalness: 0.02,
-      clearcoat: 0.46,
-      clearcoatRoughness: 0.4,
-      envMapIntensity: 0.76,
+      clearcoat: 0.34,
+      clearcoatRoughness: 0.46,
+      envMapIntensity: 0.66,
     });
 
     const frontMat = new THREE.MeshPhysicalMaterial({
       color: insetIvory,
       map: getBoneTexture(),
       bumpMap: getBoneBumpTexture(),
-      bumpScale: 0.004,
-      roughness: 0.32,
+      bumpScale: 0.0025,
+      roughness: 0.37,
       metalness: 0.015,
-      clearcoat: 0.52,
-      clearcoatRoughness: 0.36,
-      envMapIntensity: 0.84,
+      clearcoat: 0.4,
+      clearcoatRoughness: 0.42,
+      envMapIntensity: 0.72,
     });
 
     const grooveMat = new THREE.MeshPhysicalMaterial({
@@ -265,9 +265,9 @@ export class DominoPiece {
     );
 
     const pipRadius = W * 0.04;
-    const pipBottomGeometry = new THREE.CircleGeometry(pipRadius * 0.86, 48);
-    const pipWallGeometry = new THREE.RingGeometry(pipRadius * 0.72, pipRadius * 1.12, 48);
-    const pipRimGeometry = new THREE.TorusGeometry(pipRadius * 1.05, pipRadius * 0.085, 8, 48);
+    const pipBottomGeometry = new THREE.CircleGeometry(pipRadius * 0.86, 32);
+    const pipWallGeometry = new THREE.RingGeometry(pipRadius * 0.72, pipRadius * 1.08, 32);
+    const pipRimGeometry = new THREE.TorusGeometry(pipRadius * 1.03, pipRadius * 0.065, 6, 32);
     const pipPositions = [
       [-W * 0.12, H * 0.19],
       [W * 0.12, H * 0.19],
@@ -305,7 +305,24 @@ export class DominoPiece {
       coralGradientMat,
     ];
     group.userData.materials.forEach(forceSolidMaterial);
+    group.userData.mobileHidden = [
+      group.getObjectByName('dominoFrontCoralEdgeBand'),
+      group.getObjectByName('dominoRightCoralEdgeBand'),
+      group.getObjectByName('dominoLeftCoralEdgeBand'),
+      group.getObjectByName('dominoBottomCoralEdgeBand'),
+      group.getObjectByName('roundedDominoBorderLip'),
+      group.getObjectByName('roundedDividerHighlight'),
+      group.getObjectByName('roundedDividerShadow'),
+      ...group.children.filter((child) => child.name === 'roundedPipLip'),
+    ].filter(Boolean);
     return group;
+  }
+
+  /** Keep phone silhouettes crisp by removing close-stacked decorative layers. */
+  setMobilePresentation(isMobile) {
+    this.visual.userData.mobileHidden.forEach((detail) => {
+      detail.visible = !isMobile;
+    });
   }
 
   /** Apply environment map to all materials for subtle reflections */
@@ -341,6 +358,7 @@ export class DominoPiece {
     const layAngle = motion.layAngle ?? Math.PI / 2;
     const heroAngle = motion.restAngle ?? THREE.MathUtils.degToRad(86);
     const settleSlide = motion.settleSlide ?? D * 0.18;
+    const settleBounce = motion.settleBounce ?? 0.045;
     const impactT = 0.64;
     const fallSign = motion.fallSign ?? 1;
 
@@ -369,12 +387,16 @@ export class DominoPiece {
     const eased = smoothstep(u);
     const damp = Math.exp(-4.7 * u);
     const rebound = Math.sin(u * Math.PI * 3.4) * damp;
-    const angle = THREE.MathUtils.lerp(layAngle * 1.02, heroAngle, eased) + rebound * 0.045;
-    const compression = Math.sin(Math.min(u * Math.PI, Math.PI)) * damp * 1.35;
+    const angle = THREE.MathUtils.lerp(layAngle * 1.02, heroAngle, eased) + rebound * settleBounce;
+    const compression = Math.sin(Math.min(u * Math.PI, Math.PI)) * damp * (settleBounce < 0.02 ? 0.24 : 1.35);
 
     this.fallPivot.quaternion.setFromAxisAngle(FALL_AXIS, -angle * fallSign);
-    this._applyHingePosition(eased * settleSlide, Math.max(0, rebound) * 0.012, fallSign);
-    this.yawGroup.rotation.y = yaw + rebound * 0.018;
+    this._applyHingePosition(
+      eased * settleSlide,
+      Math.max(0, rebound) * (settleBounce < 0.02 ? 0.002 : 0.012),
+      fallSign
+    );
+    this.yawGroup.rotation.y = yaw + rebound * (settleBounce < 0.02 ? 0.004 : 0.018);
     this._applyVisualCompression(compression);
   }
 
@@ -634,12 +656,12 @@ function getCoralGradientMaterial() {
     color: 0xffffff,
     side: THREE.DoubleSide,
     emissive: 0xff5a1f,
-    emissiveIntensity: 0.18,
-    roughness: 0.28,
+    emissiveIntensity: 0.08,
+    roughness: 0.38,
     metalness: 0.05,
-    clearcoat: 0.5,
-    clearcoatRoughness: 0.28,
-    envMapIntensity: 0.78,
+    clearcoat: 0.36,
+    clearcoatRoughness: 0.36,
+    envMapIntensity: 0.64,
   });
 
   return coralGradientMaterial;

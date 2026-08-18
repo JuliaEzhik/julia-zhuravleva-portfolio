@@ -175,7 +175,11 @@ export class AnimationController {
     motion.angle = Math.min(motion.angle, MOBILE_REST_ANGLE);
     motion.slideBack = Math.min(motion.slideBack ?? motion.slideZ ?? 0, MOBILE_STACK_SETTLE_SLIDE);
     motion.slideZ = motion.slideBack;
-    motion.liftY = Math.max(motion.liftY ?? 0, 0);
+    motion.wobble = (motion.wobble ?? 0) * 0.2;
+    motion.yawWobble = (motion.yawWobble ?? 0) * 0.2;
+    motion.compression = (motion.compression ?? 0) * 0.18;
+    motion.liftY = Math.min(Math.max(motion.liftY ?? 0, 0), 0.002);
+    motion.highlight = (motion.highlight ?? 0) * 0.3;
     return motion;
   }
 
@@ -383,6 +387,7 @@ export class AnimationController {
         restAngle: MOBILE_REST_ANGLE,
         layAngle: MOBILE_REST_ANGLE,
         settleSlide: MOBILE_STACK_SETTLE_SLIDE,
+        settleBounce: 0.012,
       });
       this.dominoes[lastIndex].setImpactHighlight(this._contactPulse(lastIndex, 0.26));
 
@@ -399,7 +404,7 @@ export class AnimationController {
         const { shakeIntensity, shakeDuration } = CONFIG.impact;
         const fade = 1 - this.shakeElapsed / shakeDuration;
         if (fade > 0) {
-          this.scene.applyCameraShake(shakeIntensity * fade, this.shakeElapsed);
+          this.scene.applyCameraShake(shakeIntensity * 0.55 * fade, this.shakeElapsed);
         } else {
           this.shakeActive = false;
           this.scene.clearCameraShake();
@@ -412,6 +417,7 @@ export class AnimationController {
           restAngle: MOBILE_REST_ANGLE,
           layAngle: MOBILE_REST_ANGLE,
           settleSlide: MOBILE_STACK_SETTLE_SLIDE,
+          settleBounce: 0.012,
         });
         this.state = 'complete';
         this.scene.clearCameraShake();

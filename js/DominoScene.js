@@ -36,7 +36,7 @@ export class DominoScene {
 
   _initRenderer() {
     this.renderer = new THREE.WebGLRenderer({
-      antialias: !this._leanRendering,
+      antialias: true,
       alpha: true,
       powerPreference: 'high-performance',
     });
@@ -57,11 +57,11 @@ export class DominoScene {
     const isMobileWidth = window.innerWidth < 640;
     const isCoarsePointer = window.matchMedia?.('(pointer: coarse)').matches ?? false;
 
-    return (isIOS && isSafari) || (isMobileWidth && isCoarsePointer);
+    return isMobileWidth || (isIOS && isSafari) || isCoarsePointer;
   }
 
   _getPixelRatio() {
-    const cap = this._leanRendering ? 1.5 : 2;
+    const cap = window.innerWidth < 640 ? 1.65 : this._leanRendering ? 1.5 : 2;
     return Math.min(window.devicePixelRatio || 1, cap);
   }
 
@@ -106,10 +106,10 @@ export class DominoScene {
   }
 
   _initLights() {
-    const ambient = new THREE.AmbientLight(0xffead6, 0.34);
+    const ambient = new THREE.AmbientLight(0xffead6, 0.3);
     this.scene.add(ambient);
 
-    this.keyLight = new THREE.DirectionalLight(0xfff2df, 1.42);
+    this.keyLight = new THREE.DirectionalLight(0xfff2df, 1.34);
     this.keyLight.position.set(-1.7, 5.9, 4.6);
     this.keyLight.castShadow = !this._leanRendering;
     this.keyLight.shadow.mapSize.set(this._leanRendering ? 512 : 2048, this._leanRendering ? 512 : 2048);
@@ -123,11 +123,11 @@ export class DominoScene {
     this.keyLight.shadow.normalBias = 0.02;
     this.scene.add(this.keyLight);
 
-    const fill = new THREE.DirectionalLight(0xff7a33, 0.26);
+    const fill = new THREE.DirectionalLight(0xff8b4c, 0.19);
     fill.position.set(3.2, 2.35, 2.4);
     this.scene.add(fill);
 
-    const rim = new THREE.DirectionalLight(0xfff7ec, 0.72);
+    const rim = new THREE.DirectionalLight(0xfff7ec, 0.64);
     rim.position.set(0.8, 3.8, -5.6);
     this.scene.add(rim);
   }
@@ -211,28 +211,20 @@ export class DominoScene {
     this.mobileStairs = new THREE.Group();
     this.mobileStairs.name = 'mobileDominoStairs';
 
-    const stepMat = new THREE.MeshStandardMaterial({
-      color: 0x14171d,
-      roughness: 0.72,
-      metalness: 0.1,
-      envMapIntensity: 0.22,
-    });
     const treadMat = new THREE.MeshStandardMaterial({
-      color: 0x22252d,
-      roughness: 0.66,
-      metalness: 0.08,
-      envMapIntensity: 0.26,
+      color: 0x1b1d23,
+      roughness: 0.78,
+      metalness: 0.06,
+      envMapIntensity: 0.2,
     });
-    const lipMat = new THREE.MeshStandardMaterial({
-      color: 0xff6a2a,
-      emissive: 0xeb4710,
-      emissiveIntensity: 0.16,
-      roughness: 0.38,
-      metalness: 0.08,
-      envMapIntensity: 0.42,
+    const spineMat = new THREE.MeshStandardMaterial({
+      color: 0x101218,
+      roughness: 0.84,
+      metalness: 0.04,
+      envMapIntensity: 0.14,
     });
 
-    [stepMat, treadMat, lipMat].forEach((mat) => {
+    [treadMat, spineMat].forEach((mat) => {
       mat.envMap = this._envMap;
       mat.transparent = false;
       mat.opacity = 1;
@@ -240,45 +232,32 @@ export class DominoScene {
       mat.depthTest = true;
     });
 
-    this.mobileStairs.userData.materials = [stepMat, treadMat, lipMat];
+    this.mobileStairs.userData.materials = [treadMat, spineMat];
     this.mobileStairSteps = [];
 
     for (let i = 0; i < CONFIG.dominoCount.mobile; i++) {
-      const step = new THREE.Group();
-      const block = new THREE.Mesh(
-        new THREE.BoxGeometry(stairConfig.stepWidth, stairConfig.stepHeight, stairConfig.stepDepth),
-        stepMat
-      );
-      block.receiveShadow = true;
-      block.castShadow = true;
-      step.add(block);
-
-      const treadThickness = stairConfig.treadThickness ?? 0.01;
       const tread = new THREE.Mesh(
-        new THREE.BoxGeometry(stairConfig.stepWidth * 0.98, treadThickness, stairConfig.stepDepth * 0.92),
+        new THREE.BoxGeometry(
+          stairConfig.treadDepth,
+          stairConfig.treadThickness,
+          stairConfig.treadWidth
+        ),
         treadMat
       );
-      tread.position.y = stairConfig.stepHeight / 2 + treadThickness / 2;
+      tread.name = `mobilePlinthTread${i + 1}`;
       tread.receiveShadow = true;
-      tread.castShadow = true;
-      step.add(tread);
-
-      const frontLip = new THREE.Mesh(
-        new THREE.BoxGeometry(stairConfig.stepWidth * 0.98, stairConfig.coralLipHeight, stairConfig.coralLipDepth),
-        lipMat
-      );
-      frontLip.position.set(
-        0,
-        stairConfig.stepHeight / 2 + stairConfig.coralLipHeight * 0.5,
-        stairConfig.stepDepth / 2 + stairConfig.coralLipDepth * 0.5
-      );
-      frontLip.receiveShadow = true;
-      frontLip.castShadow = true;
-      step.add(frontLip);
-
-      this.mobileStairs.add(step);
-      this.mobileStairSteps.push(step);
+      tread.castShadow = false;
+      this.mobileStairs.add(tread);
+      this.mobileStairSteps.push(tread);
     }
+
+    this.mobileStairSpine = new THREE.Mesh(
+      new THREE.BoxGeometry(stairConfig.spineDepth, 1, stairConfig.spineWidth),
+      spineMat
+    );
+    this.mobileStairSpine.name = 'mobilePlinthSpine';
+    this.mobileStairSpine.receiveShadow = true;
+    this.mobileStairs.add(this.mobileStairSpine);
 
     this.mobileStairs.visible = false;
     this.compositionPivot.add(this.mobileStairs);
@@ -292,13 +271,12 @@ export class DominoScene {
     if (!isMobile) return;
 
     const stairConfig = CONFIG.scene.stairs?.mobile;
-    const stepHeight = stairConfig?.stepHeight ?? 0.09;
-    const treadThickness = stairConfig?.treadThickness ?? 0.01;
+    const treadThickness = stairConfig?.treadThickness ?? 0.035;
     const baseClearance = stairConfig?.baseClearance ?? 0.002;
-    const supportBackOffset = stairConfig?.supportBackOffset ?? 0;
     const yaw = THREE.MathUtils.degToRad(CONFIG.domino.yawDeg);
     const localBackX = -Math.sin(yaw);
     const localBackZ = -Math.cos(yaw);
+    const supportOffset = stairConfig?.fallSupportOffset ?? 0;
 
     this.mobileStairSteps.forEach((step, index) => {
       const domino = this.dominoes[index];
@@ -310,11 +288,23 @@ export class DominoScene {
       step.visible = true;
       const fallSign = index % 2 === 0 ? -1 : 1;
       step.position.set(
-        localBackX * fallSign * supportBackOffset,
-        domino.root.position.y - baseClearance - stepHeight / 2 - treadThickness,
-        domino.root.position.z + localBackZ * fallSign * supportBackOffset
+        0,
+        domino.root.position.y - baseClearance - treadThickness / 2,
+        domino.root.position.z + localBackZ * fallSign * supportOffset
       );
     });
+
+    if (this.mobileStairSpine) {
+      const topY = this.dominoes[0]?.root.position.y ?? 0;
+      const bottomY = this.dominoes[this.dominoes.length - 1]?.root.position.y ?? 0;
+      const spineHeight = Math.max(0.1, topY - bottomY + treadThickness);
+      this.mobileStairSpine.scale.y = spineHeight;
+      this.mobileStairSpine.position.set(
+        localBackX * (stairConfig?.spineBackOffset ?? 0.24),
+        (topY + bottomY - treadThickness) / 2,
+        0
+      );
+    }
   }
 
   _getDominoCount(width = window.innerWidth) {
@@ -376,13 +366,13 @@ export class DominoScene {
       this.dominoes.forEach((piece, index) => {
         const screenLeftSign = index % 2 === 0 ? 1 : -1;
         const progress = index / Math.max(1, count - 1);
-        const taper = 0.54 + progress * 0.78;
-        const centerDrift = (progress - 0.5) * 0.025;
+        const taper = 0.72 + progress * 0.18;
         piece.root.scale.setScalar(scale);
+        piece.setMobilePresentation(true);
         piece.root.position.set(
           0,
           startY - index * spacing,
-          centerDrift + screenLeftSign * mobileZigzagOffset * taper
+          screenLeftSign * mobileZigzagOffset * taper
         );
       });
       this._positionMobileStairs(width);
@@ -396,6 +386,7 @@ export class DominoScene {
 
     this.dominoes.forEach((piece, index) => {
       piece.root.scale.setScalar(scale);
+      piece.setMobilePresentation(false);
       piece.root.position.set(0, rowY, startZ - index * spacing);
     });
     this._positionMobileStairs(width);
@@ -570,7 +561,7 @@ export class DominoScene {
     const didRebuildRow = this._rebuildDominoesForWidth(w);
     const tier = this._getViewportTier(w);
     const scale = this.getDominoScale(w);
-    this.renderer.toneMappingExposure = tier === 'mobile' ? 1.12 : 1.03;
+    this.renderer.toneMappingExposure = tier === 'mobile' ? 1.06 : 1.03;
     this._applyTableLayout(w);
     this._positionDominoes(w);
 

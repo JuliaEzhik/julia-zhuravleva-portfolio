@@ -37,15 +37,15 @@ export const CONFIG = {
     depth: 0.12,
     /** Center spacing along the row; leaves a visible physical gap between yawed bodies */
     spacing: 0.72,
-    /** Tighter row for phone screens with fewer dominoes */
+    /** Compact architectural display for phone screens */
     mobileSpacing: 0.62,
     mobileLayout: 'vertical-zigzag',
-    mobileVerticalSpacing: 0.5,
-    mobileVerticalCenterY: 0.2,
-    mobileZigzagOffset: 0.26,
-    mobileRestAngleDeg: 84.5,
-    mobileSettleSlide: 0.055,
-    scale: { desktop: 1, tablet: 0.92, mobile: 0.92 },
+    mobileVerticalSpacing: 0.56,
+    mobileVerticalCenterY: -0.22,
+    mobileZigzagOffset: 0.18,
+    mobileRestAngleDeg: 82,
+    mobileSettleSlide: 0.032,
+    scale: { desktop: 1, tablet: 0.92, mobile: 0.76 },
     /** Per-domino yaw, so the faces stay visible while side/depth still reads clearly */
     yawDeg: 64,
     /** Row root Y — keeps dominoes grounded in the lower foreground band. */
@@ -56,8 +56,8 @@ export const CONFIG = {
   camera: {
     desktop: { x: 0.86, y: 1.76, z: 5.85, lookY: 0.88 },
     tablet: { x: 0.68, y: 1.72, z: 6.05, lookY: 0.84 },
-    mobile: { x: 0.1, y: 1.42, z: 5.18, lookY: 0.34 },
-    fov: { desktop: 42, tablet: 45, mobile: 42 },
+    mobile: { x: 0.08, y: 1.34, z: 5.45, lookY: 0.2 },
+    fov: { desktop: 42, tablet: 45, mobile: 40 },
   },
 
   /** Animation timing (seconds) */
@@ -89,14 +89,14 @@ export const CONFIG = {
     viewRotationDeg: -90,
     stairs: {
       mobile: {
-        stepHeight: 0.074,
-        stepWidth: 0.82,
-        stepDepth: 0.92,
-        coralLipHeight: 0.01,
-        coralLipDepth: 0.014,
-        treadThickness: 0.01,
-        baseClearance: 0.002,
-        supportBackOffset: 0.28,
+        treadWidth: 0.54,
+        treadDepth: 0.46,
+        treadThickness: 0.035,
+        spineWidth: 0.12,
+        spineDepth: 0.16,
+        spineBackOffset: 0.24,
+        fallSupportOffset: 0.19,
+        baseClearance: 0.004,
       },
     },
   },

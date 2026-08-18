@@ -857,6 +857,10 @@ section[id] {
     transform 0.15s ease;
 }
 
+.replay-btn[hidden] {
+  display: none;
+}
+
 .replay-btn:hover {
   background:
     linear-gradient(180deg, rgba(45, 36, 32, 0.96), rgba(18, 13, 12, 0.94));
@@ -2472,24 +2476,12 @@ section[id] {
     padding: clamp(5.15rem, 15svh, 5.9rem) 0.82rem 0.86rem;
     border-radius: 22px;
     background:
-      radial-gradient(circle at 50% 9%, rgba(255, 122, 51, 0.24), transparent 18rem),
-      radial-gradient(circle at 50% 56%, rgba(255, 154, 85, 0.13), transparent 24rem),
-      linear-gradient(180deg, rgba(20, 18, 21, 0.74), rgba(12, 10, 14, 0.76));
+      radial-gradient(circle at 50% 12%, rgba(255, 122, 51, 0.14), transparent 18rem),
+      linear-gradient(180deg, rgba(18, 17, 21, 0.76), rgba(9, 10, 14, 0.82));
   }
 
   .hero::after {
-    content: "";
-    position: absolute;
-    left: 50%;
-    bottom: 0.42rem;
-    z-index: 2;
-    width: 2.3rem;
-    height: 0.18rem;
-    border-radius: 999px;
-    background: linear-gradient(90deg, transparent, rgba(255, 122, 51, 0.72), transparent);
-    opacity: 0.72;
-    transform: translateX(-50%);
-    pointer-events: none;
+    display: none;
   }
 
   .hero__header {
@@ -2516,43 +2508,41 @@ section[id] {
     border-radius: 22px;
     border-color: rgba(255, 184, 126, 0.16);
     background:
-      radial-gradient(ellipse at 50% 16%, rgba(255, 122, 51, 0.2), transparent 17rem),
-      radial-gradient(ellipse at 50% 62%, rgba(255, 154, 85, 0.12), transparent 19rem),
-      linear-gradient(180deg, rgba(255, 244, 231, 0.055), rgba(255, 122, 51, 0.045));
+      radial-gradient(ellipse at 50% 18%, rgba(255, 122, 51, 0.13), transparent 17rem),
+      linear-gradient(180deg, rgba(255, 244, 231, 0.045), rgba(5, 6, 9, 0.12));
     box-shadow:
       0 1px 0 rgba(255, 255, 255, 0.08) inset,
-      0 16px 42px rgba(0, 0, 0, 0.16),
-      0 0 54px rgba(235, 71, 16, 0.16);
+      0 18px 44px rgba(0, 0, 0, 0.2);
   }
 
   .title-reveal {
     position: absolute;
-    inset: 0.92rem 0.92rem auto;
+    top: 0.9rem;
+    left: 50%;
+    right: auto;
     z-index: 3;
-    width: auto;
+    width: max-content;
     height: auto;
-    max-width: none;
-    padding: 0.82rem 0.9rem 0.9rem;
+    max-width: calc(100% - 2rem);
+    padding: 0.68rem 1rem;
     margin: 0;
     overflow: visible;
     clip: auto;
     white-space: normal;
-    border: 1px solid rgba(255, 184, 126, 0.18);
-    border-radius: 18px;
+    border: 1px solid rgba(255, 184, 126, 0.16);
+    border-radius: 999px;
     background:
-      linear-gradient(180deg, rgba(6, 7, 11, 0.82), rgba(10, 11, 16, 0.66)),
-      radial-gradient(circle at 50% 0%, rgba(255, 122, 51, 0.18), transparent 12rem);
+      linear-gradient(180deg, rgba(8, 9, 13, 0.9), rgba(10, 11, 16, 0.78));
     color: #fff4e8;
     text-align: center;
     opacity: 0;
     filter: blur(7px);
-    transform: translateY(-0.45rem) scale(0.98);
+    transform: translate(-50%, -0.4rem) scale(0.98);
     box-shadow:
       0 1px 0 rgba(255, 255, 255, 0.08) inset,
-      0 16px 38px rgba(0, 0, 0, 0.28),
-      0 0 34px rgba(235, 71, 16, 0.14);
-    -webkit-backdrop-filter: blur(18px) saturate(1.14);
-    backdrop-filter: blur(18px) saturate(1.14);
+      0 12px 28px rgba(0, 0, 0, 0.26);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
     transition:
       opacity 0.52s ease,
       filter 0.52s ease,
@@ -2564,17 +2554,17 @@ section[id] {
   .title-reveal.is-immediate {
     opacity: 1;
     filter: blur(0);
-    transform: translateY(0) scale(1);
+    transform: translate(-50%, 0) scale(1);
   }
 
   .title-reveal__subtitle {
     margin-bottom: 0;
-    color: rgba(255, 176, 111, 0.96);
-    font-size: clamp(0.7rem, 2.9vw, 0.82rem);
-    font-weight: 800;
-    letter-spacing: 0.16em;
+    color: rgba(255, 184, 126, 0.92);
+    font-size: clamp(0.68rem, 2.8vw, 0.78rem);
+    font-weight: 700;
+    letter-spacing: 0.14em;
     line-height: 1.2;
-    text-shadow: 0 0 18px rgba(235, 71, 16, 0.34);
+    text-shadow: none;
   }
 
   .title-reveal__title {
@@ -2597,13 +2587,13 @@ section[id] {
   }
 
   .stage::before {
-    background-size: 34px 34px;
-    opacity: 0.52;
-    mask-image: radial-gradient(circle at 50% 48%, rgba(0, 0, 0, 0.4), transparent 70%);
+    opacity: 0.14;
+    background-size: 44px 44px;
+    mask-image: radial-gradient(circle at 50% 46%, rgba(0, 0, 0, 0.34), transparent 72%);
   }
 
   .stage::after {
-    opacity: 0.28;
+    display: none;
   }
 
   .availability-pill {
@@ -2613,8 +2603,12 @@ section[id] {
   .replay-btn {
     align-self: center;
     padding: 0.58rem 1rem;
-    background: rgba(255, 244, 231, 0.065);
+    border-color: rgba(255, 122, 51, 0.26);
+    background: rgba(14, 15, 20, 0.84);
     font-size: 0.82rem;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.06) inset,
+      0 10px 24px rgba(0, 0, 0, 0.26);
   }
 
   .projects {
@@ -2824,8 +2818,8 @@ section[id] {
   }
 
   .title-reveal {
-    inset-inline: 0.68rem;
-    padding-inline: 0.7rem;
+    max-width: calc(100% - 1.36rem);
+    padding-inline: 0.82rem;
   }
 
   .title-reveal__title {
