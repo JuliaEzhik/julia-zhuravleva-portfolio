@@ -1560,31 +1560,257 @@ section[id] {
   line-height: 1.65;
 }
 
-.laptop-preview-grid--tennisio {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  width: min(100%, 68rem);
-  gap: clamp(0.9rem, 2.4vw, 1.2rem);
+.tennisio-preview__viewport {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
 }
 
-.laptop-preview-grid--tennisio .laptop-preview-card:last-child:nth-child(odd) {
-  grid-column: 1 / -1;
-  width: min(100%, 34rem);
-  justify-self: center;
+.tennisio-preview__viewport::-webkit-scrollbar {
+  display: none;
 }
 
-.laptop-preview-grid--tennisio .laptop-frame__screen {
+.tennisio-preview__viewport::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    rgba(5, 6, 9, 0.94),
+    transparent 10%,
+    transparent 90%,
+    rgba(5, 6, 9, 0.94)
+  );
+}
+
+.tennisio-preview__viewport:focus-visible {
+  outline: 2px solid rgba(255, 122, 51, 0.72);
+  outline-offset: 4px;
+}
+
+.tennisio-preview__track {
+  display: flex;
+  width: max-content;
+  animation: tennisio-marquee-scroll 34s linear infinite;
+}
+
+.tennisio-preview:hover .tennisio-preview__track,
+.tennisio-preview__viewport:focus-visible .tennisio-preview__track,
+.tennisio-preview.is-paused .tennisio-preview__track {
+  animation-play-state: paused;
+}
+
+.tennisio-preview__group {
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  gap: clamp(0.85rem, 2vw, 1.15rem);
+  padding: 0 0.35rem 0.35rem;
+}
+
+@keyframes tennisio-marquee-scroll {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.tennisio-preview__slide {
+  flex: 0 0 clamp(15rem, 38vw, 21rem);
+  width: clamp(15rem, 38vw, 21rem);
+  min-width: 0;
+}
+
+.tennisio-preview__open {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tennisio-preview__open:focus-visible {
+  outline: 2px solid rgba(255, 122, 51, 0.76);
+  outline-offset: 6px;
+  border-radius: 26px;
+}
+
+.tennisio-preview__zoom {
+  position: absolute;
+  right: clamp(0.55rem, 1.6vw, 0.85rem);
+  bottom: clamp(1.35rem, 3vw, 1.75rem);
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid rgba(255, 184, 126, 0.28);
+  border-radius: 999px;
+  background: rgba(5, 6, 9, 0.72);
+  color: rgba(255, 214, 178, 0.96);
+  font-size: 1.05rem;
+  line-height: 1;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.12) inset,
+    0 10px 24px rgba(0, 0, 0, 0.34);
+  pointer-events: none;
+}
+
+.tennisio-preview__zoom::before {
+  content: "+";
+}
+
+.tennisio-preview__slide .laptop-frame__screen {
   aspect-ratio: 16 / 10;
 }
 
-.laptop-preview-grid--tennisio .laptop-frame__screen > img {
+.tennisio-preview__slide .laptop-frame__screen > img {
   object-fit: cover;
   object-position: top left;
 }
 
-.laptop-preview-grid--tennisio .laptop-preview-card,
-.laptop-preview-grid--tennisio .laptop-frame {
-  touch-action: pan-y;
+.tennisio-preview__slide .laptop-preview-card,
+.tennisio-preview__slide .laptop-frame,
+.tennisio-preview__open .laptop-frame {
+  touch-action: manipulation;
   -webkit-touch-callout: none;
+}
+
+.tennisio-preview__slide--mirror {
+  pointer-events: none;
+}
+
+.tennisio-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: clamp(1rem, 3vw, 2rem);
+}
+
+.tennisio-lightbox[hidden] {
+  display: none;
+}
+
+.tennisio-lightbox__backdrop {
+  position: absolute;
+  inset: 0;
+  border: none;
+  background:
+    radial-gradient(circle at 50% 18%, rgba(235, 71, 16, 0.16), transparent 42%),
+    rgba(2, 3, 6, 0.88);
+  backdrop-filter: blur(10px);
+  cursor: pointer;
+}
+
+.tennisio-lightbox__dialog {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: clamp(0.45rem, 2vw, 0.85rem);
+  width: min(100%, 72rem);
+  max-height: min(92vh, 52rem);
+}
+
+.tennisio-lightbox__figure {
+  margin: 0;
+  min-width: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.tennisio-lightbox__image {
+  display: block;
+  width: 100%;
+  max-height: min(78vh, 44rem);
+  object-fit: contain;
+  border: 1px solid rgba(255, 154, 85, 0.22);
+  border-radius: clamp(12px, 2vw, 18px);
+  background: #080a0f;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.1) inset,
+    0 28px 80px rgba(0, 0, 0, 0.52),
+    0 0 48px rgba(235, 71, 16, 0.14);
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.tennisio-lightbox__caption {
+  color: rgba(247, 237, 223, 0.82);
+  font-size: clamp(0.88rem, 1.8vw, 0.98rem);
+  line-height: 1.55;
+  text-align: center;
+}
+
+.tennisio-lightbox__close,
+.tennisio-lightbox__nav {
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 184, 126, 0.24);
+  background: rgba(8, 10, 15, 0.82);
+  color: rgba(255, 214, 178, 0.96);
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    transform 0.2s ease;
+}
+
+.tennisio-lightbox__close {
+  position: absolute;
+  top: -0.15rem;
+  right: 0;
+  z-index: 2;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  font-size: 1.45rem;
+  line-height: 1;
+}
+
+.tennisio-lightbox__nav {
+  width: clamp(2.4rem, 6vw, 3rem);
+  height: clamp(2.4rem, 6vw, 3rem);
+  border-radius: 999px;
+  font-size: 1.65rem;
+  line-height: 1;
+}
+
+.tennisio-lightbox__close:focus-visible,
+.tennisio-lightbox__nav:focus-visible {
+  outline: 2px solid rgba(255, 122, 51, 0.76);
+  outline-offset: 3px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .tennisio-preview__open:hover .laptop-frame {
+    transform: translateY(-4px);
+    border-color: rgba(255, 154, 85, 0.34);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.14) inset,
+      0 26px 62px rgba(0, 0, 0, 0.42),
+      0 0 38px rgba(235, 71, 16, 0.12);
+  }
+
+  .tennisio-lightbox__close:hover,
+  .tennisio-lightbox__nav:hover {
+    border-color: rgba(255, 154, 85, 0.42);
+    background: rgba(235, 71, 16, 0.18);
+    transform: translateY(-1px);
+  }
+}
+
+body.is-tennisio-lightbox-open {
+  overflow: hidden;
 }
 
 .laptop-frame__browser {
@@ -2341,6 +2567,21 @@ section[id] {
   .tech-marquee__group[aria-hidden="true"] {
     display: none;
   }
+
+  .tennisio-preview__track {
+    width: auto;
+    animation: none;
+    transform: none;
+  }
+
+  .tennisio-preview__group {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .tennisio-preview__group[aria-hidden="true"] {
+    display: none;
+  }
 }
 
 @media (max-width: 760px) {
@@ -2474,13 +2715,34 @@ section[id] {
     width: min(100%, 30rem);
   }
 
-  .laptop-preview-grid--tennisio {
-    grid-template-columns: 1fr;
-    width: min(100%, 30rem);
+  .tennisio-preview__slide {
+    flex-basis: clamp(14rem, 72vw, 18rem);
+    width: clamp(14rem, 72vw, 18rem);
   }
 
-  .laptop-preview-grid--tennisio .laptop-preview-card:last-child:nth-child(odd) {
-    width: 100%;
+  .tennisio-lightbox__dialog {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.65rem;
+  }
+
+  .tennisio-lightbox__nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 2;
+  }
+
+  .tennisio-lightbox__nav--prev {
+    left: 0.35rem;
+  }
+
+  .tennisio-lightbox__nav--next {
+    right: 0.35rem;
+  }
+
+  .tennisio-lightbox__close {
+    top: 0.2rem;
+    right: 0.2rem;
   }
 
   .project-card--feature {
