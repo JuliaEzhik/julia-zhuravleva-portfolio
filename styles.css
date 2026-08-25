@@ -941,8 +941,14 @@ section[id] {
   animation: tech-marquee-scroll 34s linear infinite;
 }
 
-.tech-marquee:hover .tech-marquee__track,
-.tech-marquee__viewport:focus-visible .tech-marquee__track {
+@media (hover: hover) and (pointer: fine) {
+  .tech-marquee:hover .tech-marquee__track,
+  .tech-marquee__viewport:focus-visible .tech-marquee__track {
+    animation-play-state: paused;
+  }
+}
+
+.tech-marquee.is-paused .tech-marquee__track {
   animation-play-state: paused;
 }
 
@@ -1680,6 +1686,10 @@ section[id] {
 .tennisio-preview__open .laptop-frame {
   touch-action: manipulation;
   -webkit-touch-callout: none;
+}
+
+.tennisio-preview__slide--clone {
+  display: none;
 }
 
 .tennisio-preview__slide--mirror {
@@ -3002,13 +3012,38 @@ body.is-life-compass-lightbox-open {
     padding: 0.25rem 0 0.9rem;
   }
 
+  .tech-marquee__viewport {
+    overflow-x: scroll;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: auto;
+    scroll-behavior: auto;
+    touch-action: pan-x pan-y;
+    border-radius: 18px;
+  }
+
+  .tech-marquee__viewport::-webkit-scrollbar {
+    height: 0;
+  }
+
+  .tech-marquee__track {
+    animation: none;
+    transform: none;
+    width: max-content;
+  }
+
   .tech-marquee__group {
     gap: 0.52rem;
+    touch-action: pan-x pan-y;
   }
 
   .tech-marquee__group span {
     padding: 0.5rem 0.72rem;
     letter-spacing: 0.03em;
+    touch-action: pan-x pan-y;
+    -webkit-user-select: none;
+    user-select: none;
   }
 
   .stage {
@@ -3315,64 +3350,74 @@ body.is-life-compass-lightbox-open {
   }
 
   .tennisio-preview__viewport {
-    overflow: hidden;
-    perspective: 950px;
+    position: relative;
+    max-width: none;
+    width: 100%;
+    overflow-x: scroll;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: auto;
+    scroll-behavior: auto;
+    touch-action: pan-x pan-y;
+  }
+
+  .tennisio-preview__viewport::-webkit-scrollbar {
+    height: 0;
   }
 
   .tennisio-preview__viewport::before {
     background: linear-gradient(
       90deg,
-      rgba(5, 6, 9, 0.5),
-      transparent 9%,
-      transparent 84%,
-      rgba(5, 6, 9, 0.96)
+      rgba(5, 6, 9, 0.92),
+      transparent 12%,
+      transparent 88%,
+      rgba(5, 6, 9, 0.92)
     );
   }
 
   .tennisio-preview__track {
-    width: 100%;
+    display: flex;
+    width: max-content;
     animation: none;
     transform: none;
   }
 
   .tennisio-preview__group {
-    width: 100%;
-    gap: 0.8rem;
-    padding: 0.45rem 0 1rem 0.35rem;
-    transform-style: preserve-3d;
+    display: flex;
+    width: max-content;
+    gap: 0.72rem;
+    padding: 0 0 0.7rem;
+    align-items: start;
+    transform: none;
+    touch-action: pan-x pan-y;
   }
 
   .tennisio-preview__group[aria-hidden="true"] {
     display: none;
   }
 
-  .tennisio-preview__slide {
-    flex: 0 0 min(68vw, 19rem);
-    width: min(68vw, 19rem);
-  }
-
+  .tennisio-preview__slide,
+  .tennisio-preview__slide:first-child,
+  .tennisio-preview__slide:nth-child(2),
   .tennisio-preview__slide:nth-child(n + 3) {
-    display: none;
+    display: block;
+    flex: 0 0 clamp(14rem, 72vw, 18rem);
+    width: clamp(14rem, 72vw, 18rem);
+    margin-top: 0;
+    opacity: 1;
+    transform: none;
+    touch-action: pan-x pan-y;
   }
 
-  .tennisio-preview__slide:first-child {
-    position: relative;
-    z-index: 2;
-    transform: rotateY(4deg) translateZ(10px);
-    transform-origin: left center;
-  }
-
-  .tennisio-preview__slide:nth-child(2) {
-    position: relative;
-    z-index: 1;
-    transform: rotateY(-10deg) translateX(-0.2rem) scale(0.96);
-    transform-origin: left center;
-    opacity: 0.84;
+  .tennisio-preview__slide--clone {
+    display: block;
+    pointer-events: none;
   }
 
   .tennisio-preview__open,
   .tennisio-preview__open .laptop-frame {
-    touch-action: manipulation;
+    touch-action: pan-x pan-y;
   }
 
   .screen-card__device {
