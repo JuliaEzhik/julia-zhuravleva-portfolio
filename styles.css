@@ -1813,6 +1813,191 @@ body.is-tennisio-lightbox-open {
   overflow: hidden;
 }
 
+.project-card--soon .project-card__badge {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.32rem 0.62rem;
+  border: 1px solid rgba(255, 184, 126, 0.28);
+  border-radius: 999px;
+  background: rgba(235, 71, 16, 0.14);
+  color: rgba(255, 198, 148, 0.96);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.life-compass-preview {
+  width: min(100%, 72rem);
+  margin: clamp(2.4rem, 6vw, 4rem) auto 0;
+  scroll-margin-top: 6rem;
+}
+
+.life-compass-preview__header {
+  max-width: 40rem;
+  margin: 0 auto clamp(1.35rem, 3.5vw, 2rem);
+  text-align: center;
+}
+
+.life-compass-preview__eyebrow {
+  margin: 0 0 0.55rem;
+  color: rgba(255, 154, 85, 0.9);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.life-compass-preview__title {
+  margin: 0 0 0.65rem;
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: clamp(1.45rem, 3.2vw, 2rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.life-compass-preview__copy {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: clamp(0.95rem, 1.7vw, 1.05rem);
+  line-height: 1.65;
+}
+
+.life-compass-preview__viewport {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+
+.life-compass-preview__viewport::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    rgba(5, 6, 9, 0.94),
+    transparent 10%,
+    transparent 90%,
+    rgba(5, 6, 9, 0.94)
+  );
+}
+
+.life-compass-preview__viewport:focus-visible {
+  outline: 2px solid rgba(255, 122, 51, 0.72);
+  outline-offset: 4px;
+}
+
+.life-compass-preview__track {
+  display: flex;
+  width: max-content;
+  animation: life-compass-marquee-scroll 34s linear infinite;
+}
+
+.life-compass-preview:hover .life-compass-preview__track,
+.life-compass-preview__viewport:focus-visible .life-compass-preview__track,
+.life-compass-preview.is-paused .life-compass-preview__track {
+  animation-play-state: paused;
+}
+
+.life-compass-preview__group {
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  gap: clamp(0.85rem, 2vw, 1.15rem);
+  padding: 0.35rem 0.35rem 0.55rem;
+}
+
+@keyframes life-compass-marquee-scroll {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.life-compass-preview__slide {
+  flex: 0 0 clamp(8.25rem, 18vw, 9.5rem);
+  width: clamp(8.25rem, 18vw, 9.5rem);
+  min-width: 0;
+  margin: 0;
+}
+
+.life-compass-preview__open {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.life-compass-preview__open:focus-visible {
+  outline: 2px solid rgba(255, 122, 51, 0.76);
+  outline-offset: 6px;
+  border-radius: 28px;
+}
+
+.life-compass-preview__open .screen-card__device {
+  width: 100%;
+  max-width: none;
+  transition: transform 0.24s ease;
+}
+
+.life-compass-preview__open .screen-card__screen > img {
+  object-fit: cover;
+  object-position: top center;
+}
+
+.life-compass-preview__zoom {
+  position: absolute;
+  right: 0.55rem;
+  bottom: 0.85rem;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  border: 1px solid rgba(255, 184, 126, 0.28);
+  border-radius: 999px;
+  background: rgba(5, 6, 9, 0.72);
+  color: rgba(255, 214, 178, 0.96);
+  font-size: 0.95rem;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.life-compass-preview__zoom::before {
+  content: "+";
+}
+
+.life-compass-preview__slide--mirror {
+  pointer-events: none;
+}
+
+.tennisio-lightbox__image--phone {
+  width: auto;
+  max-width: min(100%, 22rem);
+  max-height: min(78vh, 44rem);
+  margin-inline: auto;
+}
+
+body.is-life-compass-lightbox-open {
+  overflow: hidden;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .life-compass-preview__open:hover .screen-card__device {
+    transform: translateY(-4px) scale(1.018);
+  }
+}
+
 .laptop-frame__browser {
   position: absolute;
   top: clamp(0.58rem, 1.6vw, 0.8rem);
@@ -2582,6 +2767,21 @@ body.is-tennisio-lightbox-open {
   .tennisio-preview__group[aria-hidden="true"] {
     display: none;
   }
+
+  .life-compass-preview__track {
+    width: auto;
+    animation: none;
+    transform: none;
+  }
+
+  .life-compass-preview__group {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .life-compass-preview__group[aria-hidden="true"] {
+    display: none;
+  }
 }
 
 @media (max-width: 760px) {
@@ -2750,6 +2950,15 @@ body.is-tennisio-lightbox-open {
   }
 
   .tennisio-preview__header {
+    text-align: left;
+  }
+
+  .life-compass-preview__slide {
+    flex-basis: clamp(7.75rem, 34vw, 8.5rem);
+    width: clamp(7.75rem, 34vw, 8.5rem);
+  }
+
+  .life-compass-preview__header {
     text-align: left;
   }
 }

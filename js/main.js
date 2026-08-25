@@ -1471,3 +1471,196 @@ initI18n();
     }
   });
 })();
+
+/**
+ * Life Compass gallery — CSS marquee phone row + lightbox on tap/click.
+ */
+(function initLifeCompassGallery() {
+  'use strict';
+
+  const preview = document.querySelector('.life-compass-preview');
+  const track = document.querySelector('.life-compass-preview__track');
+  const sourceGroup = document.querySelector('.life-compass-preview__group');
+  const lightbox = document.getElementById('life-compass-lightbox');
+
+  if (
+    !(preview instanceof HTMLElement) ||
+    !(track instanceof HTMLElement) ||
+    !(sourceGroup instanceof HTMLElement) ||
+    !(lightbox instanceof HTMLElement)
+  ) {
+    return;
+  }
+
+  const lightboxImage = lightbox.querySelector('.tennisio-lightbox__image');
+  const lightboxCaption = lightbox.querySelector('.tennisio-lightbox__caption');
+  const closeButtons = lightbox.querySelectorAll('[data-life-compass-lightbox-close]');
+  const prevButton = lightbox.querySelector('[data-life-compass-lightbox-prev]');
+  const nextButton = lightbox.querySelector('[data-life-compass-lightbox-next]');
+
+  if (
+    !(lightboxImage instanceof HTMLImageElement) ||
+    !(lightboxCaption instanceof HTMLElement) ||
+    !(prevButton instanceof HTMLButtonElement) ||
+    !(nextButton instanceof HTMLButtonElement)
+  ) {
+    return;
+  }
+
+  let currentIndex = 0;
+  let lastFocus = null;
+
+  function buildMirrorGroup() {
+    if (track.querySelector('.life-compass-preview__group[aria-hidden="true"]')) {
+      return;
+    }
+
+    const mirror = sourceGroup.cloneNode(true);
+    if (!(mirror instanceof HTMLElement)) return;
+
+    mirror.setAttribute('aria-hidden', 'true');
+    mirror.querySelectorAll('.life-compass-preview__slide').forEach((slide) => {
+      slide.classList.add('life-compass-preview__slide--mirror');
+    });
+    mirror.querySelectorAll('button').forEach((button) => {
+      const device = button.querySelector('.screen-card__device');
+      if (!(device instanceof HTMLElement)) {
+        button.remove();
+        return;
+      }
+
+      const replacement = device.cloneNode(true);
+      if (replacement instanceof HTMLElement) {
+        button.replaceWith(replacement);
+      }
+    });
+    mirror.querySelectorAll('figcaption').forEach((caption) => caption.remove());
+    mirror.querySelectorAll('img').forEach((image) => {
+      image.alt = '';
+      image.removeAttribute('data-i18n-alt');
+      image.loading = 'eager';
+      image.draggable = false;
+      image.setAttribute('draggable', 'false');
+    });
+
+    track.appendChild(mirror);
+  }
+
+  buildMirrorGroup();
+
+  const slides = Array.from(sourceGroup.querySelectorAll('.life-compass-preview__slide'));
+  const openButtons = sourceGroup.querySelectorAll('.life-compass-preview__open');
+  const items = slides.map((slide) => {
+    const image = slide.querySelector('img');
+    const caption = slide.querySelector('figcaption');
+
+    return {
+      src: image instanceof HTMLImageElement ? image.currentSrc || image.src : '',
+      alt: caption instanceof HTMLElement ? caption.textContent.trim() : '',
+    };
+  });
+
+  function renderLightbox(index) {
+    const item = items[index];
+    if (!item) return;
+
+    currentIndex = index;
+    lightboxImage.src = item.src;
+    lightboxImage.alt = item.alt;
+    lightboxCaption.textContent = item.alt;
+    prevButton.disabled = items.length <= 1;
+    nextButton.disabled = items.length <= 1;
+  }
+
+  function openLightbox(index, trigger) {
+    if (!(trigger instanceof HTMLElement)) return;
+
+    lastFocus = trigger;
+    preview.classList.add('is-paused');
+    renderLightbox(index);
+    lightbox.hidden = false;
+    lightbox.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('is-life-compass-lightbox-open');
+    lightbox.querySelector('.tennisio-lightbox__close')?.focus();
+  }
+
+  function closeLightbox() {
+    lightbox.hidden = true;
+    lightbox.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('is-life-compass-lightbox-open');
+    lightboxImage.removeAttribute('src');
+    preview.classList.remove('is-paused');
+
+    if (lastFocus instanceof HTMLElement) {
+      lastFocus.focus();
+    }
+  }
+
+  function stepLightbox(delta) {
+    if (!items.length) return;
+    const nextIndex = (currentIndex + delta + items.length) % items.length;
+    renderLightbox(nextIndex);
+  }
+
+  openButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      const index = Number.parseInt(button.getAttribute('data-life-compass-index') || '0', 10);
+      openLightbox(Number.isFinite(index) ? index : 0, button);
+    });
+  });
+
+  closeButtons.forEach((button) => {
+    button.addEventListener('click', closeLightbox);
+  });
+
+  prevButton.addEventListener('click', () => stepLightbox(-1));
+  nextButton.addEventListener('click', () => stepLightbox(1));
+
+  lightbox.addEventListener('click', (event) => {
+    if (event.target === lightbox) {
+      closeLightbox();
+    }
+  });
+
+  window.addEventListener('keydown', (event) => {
+    if (lightbox.hidden) return;
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeLightbox();
+      return;
+    }
+
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      stepLightbox(-1);
+      return;
+    }
+
+    if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      stepLightbox(1);
+    }
+  });
+
+  sourceGroup.querySelectorAll('img').forEach((image) => {
+    image.draggable = false;
+    image.setAttribute('draggable', 'false');
+  });
+
+  onLanguageChange(() => {
+    items.splice(0, items.length, ...slides.map((slide) => {
+      const image = slide.querySelector('img');
+      const caption = slide.querySelector('figcaption');
+
+      return {
+        src: image instanceof HTMLImageElement ? image.currentSrc || image.src : '',
+        alt: caption instanceof HTMLElement ? caption.textContent.trim() : '',
+      };
+    }));
+
+    if (!lightbox.hidden) {
+      renderLightbox(currentIndex);
+    }
+  });
+})();
