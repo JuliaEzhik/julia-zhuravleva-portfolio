@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Connect Memoway</title>
+  <style>
+    :root { color-scheme: light; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: #f6f2ec;
+      color: #2b3a42;
+      font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    main {
+      width: min(420px, calc(100% - 40px));
+      padding: 28px 24px;
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.9);
+      box-shadow: 0 14px 36px rgba(43, 58, 66, 0.1);
+      text-align: center;
+    }
+    .eyebrow { font-size: 11px; letter-spacing: 0.12em; color: #35677f; font-weight: 700; }
+    h1 { font-size: 22px; margin: 8px 0 4px; }
+    .sub { color: #5d6d75; margin: 0 0 22px; }
+    a.button {
+      display: block;
+      width: 100%;
+      box-sizing: border-box;
+      padding: 14px 18px;
+      border-radius: 999px;
+      background: #35677f;
+      color: #fff;
+      font: 600 16px/1.2 inherit;
+      text-decoration: none;
+    }
+    .hint { font-size: 13px; color: #7b878d; margin-top: 18px; }
+    .error h1 { color: #a5473a; }
+  </style>
+</head>
+<body>
+  <main id="app">
+    <div class="eyebrow">MEMOWAY · JOB BOT</div>
+    <h1 id="title">Connecting Memoway…</h1>
+    <p class="sub" id="sub">From now on, applications from your bot appear in Memoway by themselves.</p>
+    <a class="button" id="open" href="#">Open Memoway</a>
+    <p class="hint" id="hint">
+      If Memoway does not open by itself, tap the button.
+      This page runs only in your browser; your link is never sent to a server.
+    </p>
+  </main>
+  <script>
+    (function () {
+      var feed = new URLSearchParams(location.hash.replace(/^#/, '')).get('feed') || '';
+      var url = '';
+      try {
+        var base64 = feed.replace(/-/g, '+').replace(/_/g, '/');
+        while (base64.length % 4) base64 += '=';
+        url = atob(base64);
+      } catch (e) {
+        url = '';
+      }
+
+      if (url.indexOf('https://') !== 0) {
+        document.getElementById('app').classList.add('error');
+        document.getElementById('title').textContent = 'This link is incomplete';
+        document.getElementById('sub').textContent = 'Send /memoway to your bot again and tap the new button.';
+        document.getElementById('open').style.display = 'none';
+        document.getElementById('hint').style.display = 'none';
+        return;
+      }
+
+      var deepLink = 'memoway://jobs/connect?feed=' + encodeURIComponent(feed);
+      document.getElementById('open').href = deepLink;
+      // In-app browsers often need a tap, so the button stays as the fallback.
+      setTimeout(function () { location.href = deepLink; }, 250);
+    })();
+  </script>
+</body>
+</html>
